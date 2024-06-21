@@ -7,6 +7,9 @@ services:
 
   postgres:
     image: postgres:latest
+    command: ["postgres", "-c", "log_statement=all"]
+    ports:
+      - 6432:5432
     environment:
       - POSTGRES_DB=app
       - POSTGRES_USER=user
@@ -14,3 +17,47 @@ services:
 
   redis:
     image: redis:latest
+
+  matecat-filters:
+    build:
+      context: ./docker/matecat-filters
+    ports:
+      - 8734:8734
+
+  libretranslate:
+    container_name: libretranslate
+    image: libretranslate/libretranslate:latest
+    ports:
+      - "6002:5000"
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', './venv/bin/python scripts/healthcheck.py']
+      interval: 10s
+      timeout: 4s
+      retries: 4
+      start_period: 5s
+
+  libretranslate-cuda:
+    image: libretranslate/libretranslate:latest-cuda
+    ports:
+      - "6003:5000"
+    restart: unless-stopped
+    command: --disable-web-ui
+    environment:
+    #  - LT_API_KEYS_DB_PATH=/app/db/api_keys.db
+    #  - LT_API_KEYS=True
+    #  - LT_REQ_LIMIT=120
+     - LT_UPDATE_MODELS=True
+     - LT_DEBUG=True
+     - NVIDIA_DISABLE_REQUIRE=true
+     - PUID=root
+    volumes:
+     - ./.libretranslate-data/db:/app/db
+     - ./.libretranslate-data/data:/root/.local:rw
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

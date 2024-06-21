@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Str;
+
 return [
 
     /*
@@ -33,6 +35,13 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app'),
+            'throw' => false,
+        ],
+
+        'temporary' => [
+            'driver' => 'local',
+            'root' => '/tmp/' . Str::snake(config('app.name')),
+            'url' => '/tmp/' . Str::snake(config('app.name')),
             'throw' => false,
         ],
 
