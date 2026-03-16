@@ -239,6 +239,130 @@ class InternalTranslationMemoryService
     }
 
 
+    /**
+     * Write a single translation memory to a TMX file at $outputPath.
+     * Uses XMLWriter to stream directly to disk — safe for large TMs.
+     */
+    public static function exportToTmx(TranslationMemory $tm, string $outputPath): void
+    {
+        $xml = new \XMLWriter();
+        $xml->openUri($outputPath);
+        $xml->setIndent(true);
+        $xml->setIndentString('  ');
+
+        $xml->startDocument('1.0', 'UTF-8');
+        $xml->startElement('tmx');
+        $xml->writeAttribute('version', '1.4');
+
+        $xml->startElement('header');
+        $xml->writeAttribute('creationtool', 'Catto');
+        $xml->writeAttribute('datatype', 'plaintext');
+        $xml->writeAttribute('segtype', 'sentence');
+        $xml->writeAttribute('adminlang', 'en');
+        $xml->writeAttribute('srclang', $tm->source_locale);
+        $xml->endElement();
+
+        $xml->startElement('body');
+
+        TranslationMemorySegment::getModel()
+            ->where('translation_memory_id', $tm->id)
+            ->lazyById()
+            ->each(function ($segment) use ($xml, $tm) {
+                self::writeTu($xml, $segment, $tm->source_locale, $tm->target_locale);
+            });
+
+        $xml->endElement(); // body
+        $xml->endElement(); // tmx
+        $xml->endDocument();
+        $xml->flush();
+    }
+
+    /**
+     * Write multiple translation memories into a single combined TMX file at $outputPath.
+     * Uses srclang="*all*" in the header when locales differ across TMs.
+     *
+     * @param \Illuminate\Support\Collection<TranslationMemory> $tms
+     */
+    public static function exportCombinedToTmx(\Illuminate\Support\Collection $tms, string $outputPath): void
+    {
+        $sourceLocales = $tms->pluck('source_locale')->unique();
+        $srclang = $sourceLocales->count() === 1 ? $sourceLocales->first() : '*all*';
+
+        $xml = new \XMLWriter();
+        $xml->openUri($outputPath);
+        $xml->setIndent(true);
+        $xml->setIndentString('  ');
+
+        $xml->startDocument('1.0', 'UTF-8');
+        $xml->startElement('tmx');
+        $xml->writeAttribute('version', '1.4');
+
+        $xml->startElement('header');
+        $xml->writeAttribute('creationtool', 'Catto');
+        $xml->writeAttribute('datatype', 'plaintext');
+        $xml->writeAttribute('segtype', 'sentence');
+        $xml->writeAttribute('adminlang', 'en');
+        $xml->writeAttribute('srclang', $srclang);
+        $xml->endElement();
+
+        $xml->startElement('body');
+
+        foreach ($tms as $tm) {
+            TranslationMemorySegment::getModel()
+                ->where('translation_memory_id', $tm->id)
+                ->lazyById()
+                ->each(function ($segment) use ($xml, $tm) {
+                    self::writeTu($xml, $segment, $tm->source_locale, $tm->target_locale);
+                });
+        }
+
+        $xml->endElement(); // body
+        $xml->endElement(); // tmx
+        $xml->endDocument();
+        $xml->flush();
+    }
+
+    private static function writeTu(\XMLWriter $xml, $segment, string $sourceLang, string $targetLang): void
+    {
+        $xml->startElement('tu');
+
+        $xml->startElement('tuv');
+        $xml->writeAttribute('xml:lang', $sourceLang);
+        if ($segment->source_context_before) {
+            $xml->startElement('prop');
+            $xml->writeAttribute('type', 'context_before');
+            $xml->text($segment->source_context_before);
+            $xml->endElement();
+        }
+        if ($segment->source_context_after) {
+            $xml->startElement('prop');
+            $xml->writeAttribute('type', 'context_after');
+            $xml->text($segment->source_context_after);
+            $xml->endElement();
+        }
+        $xml->writeElement('seg', $segment->source);
+        $xml->endElement(); // tuv
+
+        $xml->startElement('tuv');
+        $xml->writeAttribute('xml:lang', $targetLang);
+        if ($segment->target_context_before) {
+            $xml->startElement('prop');
+            $xml->writeAttribute('type', 'context_before');
+            $xml->text($segment->target_context_before);
+            $xml->endElement();
+        }
+        if ($segment->target_context_after) {
+            $xml->startElement('prop');
+            $xml->writeAttribute('type', 'context_after');
+            $xml->text($segment->target_context_after);
+            $xml->endElement();
+        }
+        $xml->writeElement('seg', $segment->target);
+        $xml->endElement(); // tuv
+
+        $xml->endElement(); // tu
+    }
+
     private static function minLevenshteinLength($length, $min_similarity = 0.7, $min_length = 1)
     {
         return intval(ceil(max($length * $min_similarity, 1)));

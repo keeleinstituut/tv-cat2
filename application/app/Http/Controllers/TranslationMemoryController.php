@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 use App\Models\TranslationMemory;
 use App\Http\Resources\TranslationMemoryResource;
 use App\Http\Requests\TranslationMemoryIndexRequest;
 use App\Http\Requests\TranslationMemoryStoreRequest;
 use App\Http\Requests\TranslationMemoryImportRequest;
+use App\Http\Requests\TranslationMemoryExportRequest;
 use App\Services\InternalTranslationMemoryService;
 
 class TranslationMemoryController extends Controller
@@ -138,6 +140,56 @@ class TranslationMemoryController extends Controller
     // {
     //     //
     // }
+
+    public function export(TranslationMemoryExportRequest $request)
+    {
+        $params   = collect($request->validated());
+        $combined = (bool) $params->get('combined', false);
+        $ids      = $params->get('translation_memory_ids');
+
+        $tms = TranslationMemory::whereIn('id', $ids)->get();
+
+        $zipPath   = tempnam(sys_get_temp_dir(), 'tm_export_') . '.zip';
+        $zip       = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $tmxTempFiles = [];
+
+        if ($combined) {
+            $tmxPath        = tempnam(sys_get_temp_dir(), 'tm_export_');
+            $tmxTempFiles[] = $tmxPath;
+            InternalTranslationMemoryService::exportCombinedToTmx($tms, $tmxPath);
+            $zip->addFile($tmxPath, 'export.tmx');
+        } else {
+            $usedNames = [];
+
+            foreach ($tms as $tm) {
+                $base = Str::slug($tm->name) ?: $tm->id;
+                $name = $base;
+                $i    = 1;
+                while (\in_array($name, $usedNames)) {
+                    $name = "{$base}_{$i}";
+                    $i++;
+                }
+                $usedNames[] = $name;
+
+                $tmxPath        = tempnam(sys_get_temp_dir(), 'tm_export_');
+                $tmxTempFiles[] = $tmxPath;
+                InternalTranslationMemoryService::exportToTmx($tm, $tmxPath);
+                $zip->addFile($tmxPath, "{$name}.tmx");
+            }
+        }
+
+        $zip->close();
+
+        // ZipArchive has compressed the TMX files into the ZIP; temp files can be removed.
+        foreach ($tmxTempFiles as $f) {
+            @unlink($f);
+        }
+
+        return response()
+            ->download($zipPath, 'translation-memories.zip', ['Content-Type' => 'application/zip'])
+            ->deleteFileAfterSend(true);
+    }
 
     public function import(TranslationMemoryImportRequest $request)
     {

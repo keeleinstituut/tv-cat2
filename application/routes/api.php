@@ -77,6 +77,7 @@ Route::prefix('/translation-memories')
         Route::post('/', 'store');
         Route::get('/{id}', 'show');
         Route::post('/import', 'import');
+        Route::post('/export', 'export');
         Route::put('/{id}', 'update');
 //        Route::delete('/{id}', 'destroy');
     });

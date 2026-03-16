@@ -5,7 +5,7 @@ COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 ENV APP_ROOT /app
 
-RUN apk add libpq-dev libsodium-dev linux-headers
+RUN apk add libpq-dev libsodium-dev linux-headers libzip-dev
 RUN docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql && \
         docker-php-ext-install pgsql \
                                 pdo \
@@ -13,7 +13,8 @@ RUN docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql && \
                                 sodium \
                                 pcntl \
                                 sockets \
-                                exif
+                                exif \
+                                zip
 
 RUN echo 'post_max_size = 512M' >> /usr/local/etc/php/php.ini && \
     echo 'upload_max_filesize = 256M' >> /usr/local/etc/php/php.ini && \
