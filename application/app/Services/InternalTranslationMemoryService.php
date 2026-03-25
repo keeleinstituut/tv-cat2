@@ -149,6 +149,7 @@ class InternalTranslationMemoryService
                     // 'score' => (1 - $tmSegment->score) * 100,
                     'score' => $score,
                     'raw_score' => $tmSegment->score,
+                    'updated_at' => $tmSegment->updated_at,
                     'meta' => [
                         'source_context_before' => $tmSegment->source_context_before,
                         'source_context_after' => $tmSegment->source_context_after,

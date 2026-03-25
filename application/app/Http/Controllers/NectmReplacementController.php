@@ -58,7 +58,7 @@ class NectmReplacementController extends Controller
                         "_id" => null,
                         "domain" => "['" . $suggestion['provider']['translation_memory_id'] . "']",
                         "source_text" => $suggestion['source'],
-                        "target_text" => $suggestion['target'],
+                        "target_text" => $suggestion['target'] . 'asd',
                         "source_metadata" => [
                             "context_before" => $suggestion['meta']['source_context_before'],
                             "context_after" => $suggestion['meta']['source_context_after'],
@@ -67,7 +67,8 @@ class NectmReplacementController extends Controller
                     ],
                     'match' => $suggestion["score"],
                     'mt' => false,
-                    "update_date" => "20251124T080807Z",
+                    // "update_date" => "20251124T080807Z", // TODO: output correct data
+                    "update_date" => $suggestion['updated_at'],
                     "username" => "20b4d4e4-bcc2-4ac7-a66b-11dd80f40613",
                     "file_name" => "['tv-test1.tmx']",
                     "tag" => [

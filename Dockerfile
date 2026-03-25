@@ -48,9 +48,12 @@ RUN <<EOF cat > /etc/nginx/http.d/default.conf
 server {
     listen 80;
     index index.php index.html;
+    root /var/www/html;
+
     error_log  /var/log/nginx/error.log;
     access_log /var/log/nginx/access.log;
-    root /var/www/html;
+    client_max_body_size 100M;
+
     location ~ \.php\$ {
         try_files \$uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)\$;

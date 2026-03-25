@@ -18,6 +18,8 @@ class TranslationMemoryIndexRequest extends FormRequest
             'target_locale' => ['string'],
             'meta' => ['array'],
             'meta.*' => ['string'],
+            'filter' => ['array'],
+            'with_segment_count' => ['boolean']
         ];
     }
 }

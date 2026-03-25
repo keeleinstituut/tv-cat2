@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\TranslationMemorySegment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -22,8 +23,6 @@ class TranslationMemoryController extends Controller
     public function index(TranslationMemoryIndexRequest $request)
     {
         $params = collect($request->validated());
-
-        // dump($params);
 
         $query = $this->getBaseQuery();
 
@@ -51,11 +50,25 @@ class TranslationMemoryController extends Controller
                 }, $query);
         }
 
+        if ($filter = $params->get('filter')) {
+            $query = $this->applyFilter($query, $filter);
+        }
+
         $data = $query->get();
+        $additionalData = [];
         // $data = $query->paginate();
 
+        if ($params->get('with_segment_count', false)) {
+            $additionalData['segment_counts'] = TranslationMemorySegment::getModel()
+                ->whereIn('translation_memory_id', $data->pluck('id'))
+                ->groupBy('translation_memory_id')
+                ->select('translation_memory_id', DB::raw('count(*) as count'))
+                ->get();
+        }
 
-        return TranslationMemoryResource::collection($data);
+
+        return TranslationMemoryResource::collection($data)
+            ->additional($additionalData);
     }
 
     /**
@@ -210,5 +223,38 @@ class TranslationMemoryController extends Controller
 
     private function getBaseQuery() {
         return TranslationMemory::getModel();
+    }
+
+    private function applyFilter($query, array $filter)
+    {
+        foreach ($filter as $key => $value) {
+            if ($key === 'or') {
+                $query = $query->where(function ($q) use ($value) {
+                    foreach ($value as $i => $group) {
+                        $method = $i === 0 ? 'where' : 'orWhere';
+                        $q = $q->$method(function ($sub) use ($group) {
+                            return $this->applyFilter($sub, $group);
+                        });
+                    }
+                });
+            } elseif ($key === 'and') {
+                // $query = $query->where(function ($q) use ($value) {
+                //     return $this->applyFilter($q, $value);
+                // });
+                $query = $query->where(function ($q) use ($value) {
+                    foreach ($value as $group) {
+                        $q = $q->where(function ($sub) use ($group) {
+                            $this->applyFilter($sub, $group);
+                        });
+                    }
+                });
+            } else {
+                $column = str_starts_with($key, 'meta.')
+                    ? 'meta->' . substr($key, 5)
+                    : $key;
+                $query = $query->where($column, $value);
+            }
+        }
+        return $query;
     }
 }
