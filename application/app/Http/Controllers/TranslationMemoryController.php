@@ -63,7 +63,11 @@ class TranslationMemoryController extends Controller
                 ->whereIn('translation_memory_id', $data->pluck('id'))
                 ->groupBy('translation_memory_id')
                 ->select('translation_memory_id', DB::raw('count(*) as count'))
-                ->get();
+                ->get()
+                ->reduce(function ($acc, $v) {
+                    $acc[$v['translation_memory_id']] = $v['count'];
+                    return $acc;
+                }, []);
         }
 
 
