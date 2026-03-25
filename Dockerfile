@@ -9,7 +9,7 @@ ENV APP_ROOT /app
 ENV WEB_ROOT /var/www/html
 ENV ENTRYPOINT /entrypoint.sh
 
-RUN apk add libpq-dev libsodium-dev linux-headers
+RUN apk add libpq-dev libsodium-dev linux-headers libzip-dev
 RUN docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql && \
         docker-php-ext-install pgsql \
                                 pdo \
