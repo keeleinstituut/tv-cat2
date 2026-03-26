@@ -233,7 +233,11 @@ class InternalTranslationMemoryService
                     'target_context_after' => $get( ['target.meta.context_after', 'target.meta.context_next']),
                 ];
             })
-            ->chunk(10000)
+            ->filter(function ($unit) {
+                return !empty($unit['source']) &&
+                    !empty($unit['target']);
+            })
+            ->chunk(5000)
             ->each(function ($chunk) {
                 TranslationMemorySegment::insert($chunk->toArray());
             });
