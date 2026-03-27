@@ -58,7 +58,7 @@ class NectmReplacementController extends Controller
                         "_id" => null,
                         "domain" => "['" . $suggestion['provider']['translation_memory_id'] . "']",
                         "source_text" => $suggestion['source'],
-                        "target_text" => $suggestion['target'] . 'asd',
+                        "target_text" => $suggestion['target'],
                         "source_metadata" => [
                             "context_before" => $suggestion['meta']['source_context_before'],
                             "context_after" => $suggestion['meta']['source_context_after'],
