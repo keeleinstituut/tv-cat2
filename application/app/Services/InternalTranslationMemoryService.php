@@ -161,7 +161,10 @@ class InternalTranslationMemoryService
                     ]
                 ];
             })
-            ->sortByDesc('score')
+            ->sortBy([
+                ['score', 'desc'],
+                ['updated_at', 'desc'],
+            ])
             ->toArray();
 
         return $translationMemoryResult;
