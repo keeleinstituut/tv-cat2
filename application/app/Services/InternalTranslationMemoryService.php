@@ -129,7 +129,10 @@ class InternalTranslationMemoryService
             ->map(function ($tmSegment) use ($options, $translationMemories) {
                 $score = round($tmSegment->score * 100, 2);
 
-                if (isset($options->contextBefore) && isset($options->contextAfter)) {
+                $shouldCheckContext = isset($options->contextBefore) && isset($options->contextAfter);
+                // $shouldCheckContext = true;
+
+                if ($shouldCheckContext) {
                     $matchesBefore = $tmSegment->source_context_before == $options->contextBefore;
                     $matchesAfter = $tmSegment->source_context_after == $options->contextAfter;
 
