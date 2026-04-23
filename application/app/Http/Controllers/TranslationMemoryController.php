@@ -17,6 +17,22 @@ use App\Services\InternalTranslationMemoryService;
 
 class TranslationMemoryController extends Controller
 {
+    private const OPERATOR_MAP = [
+        'eq'    => '=',
+        'neq'   => '!=',
+        'gt'    => '>',
+        'gte'   => '>=',
+        'lt'    => '<',
+        'lte'   => '<=',
+        'like'  => 'LIKE',
+        'ilike' => 'ILIKE',
+    ];
+
+    private const ALLOWED_FILTER_COLUMNS = [
+        'name',
+        'source_locale',
+        'target_locale',
+    ];
     /**
      * Display a listing of the resource.
      */
@@ -253,10 +269,24 @@ class TranslationMemoryController extends Controller
                     }
                 });
             } else {
-                $column = str_starts_with($key, 'meta.')
-                    ? 'meta->' . substr($key, 5)
-                    : $key;
-                $query = $query->where($column, $value);
+                if (str_starts_with($key, 'meta.')) {
+                    $metaKey = substr($key, 5);
+                    if (!preg_match('/^[a-zA-Z0-9_]+$/', $metaKey)) {
+                        abort(422, "Invalid meta filter key: {$key}");
+                    }
+                    $column = "meta->{$metaKey}";
+                } else {
+                    if (!\in_array($key, self::ALLOWED_FILTER_COLUMNS, true)) {
+                        abort(422, "Filter on column '{$key}' is not allowed");
+                    }
+                    $column = $key;
+                }
+                if (\is_array($value) && \array_key_exists('operator', $value) && \array_key_exists('value', $value)) {
+                    $op = self::OPERATOR_MAP[$value['operator']] ?? abort(422, "Unknown filter operator: {$value['operator']}");
+                    $query = $query->where($column, $op, $value['value']);
+                } else {
+                    $query = $query->where($column, $value);
+                }
             }
         }
         return $query;
