@@ -167,6 +167,10 @@ class InternalTranslationMemoryService
             ])
             ->toArray();
 
+        if ($options->limit !== null) {
+            $translationMemoryResult = array_slice($translationMemoryResult, 0, $options->limit);
+        }
+
         return $translationMemoryResult;
     }
 

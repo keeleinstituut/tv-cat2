@@ -16,7 +16,8 @@ class GetSuggestionsOptions
   public ?array $providers = null;
   public ?string $contextBefore = null;
   public ?string $contextAfter = null;
-  
+  public ?int $limit = null;
+
 
   public static function make(): self
   {
@@ -62,6 +63,12 @@ class GetSuggestionsOptions
   public function setContextAfter(?string $contextAfter): self
   {
     $this->contextAfter = $contextAfter;
+    return $this;
+  }
+
+  public function setLimit(?int $limit): self
+  {
+    $this->limit = $limit;
     return $this;
   }
 }

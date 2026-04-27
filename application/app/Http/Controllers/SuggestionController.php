@@ -26,7 +26,8 @@ class SuggestionController extends Controller
             ->setProviders($params->get('providers'))
             // ->setTranslationMemoryIds($params->get('translation_memory_ids'))
             ->setContextBefore($params->get('context_before'))
-            ->setContextAfter($params->get('context_after'));
+            ->setContextAfter($params->get('context_after'))
+            ->setLimit($params->get('limit'));
 
         $data = SuggestionService::getSuggestions($options);
 
@@ -48,7 +49,8 @@ class SuggestionController extends Controller
             ->setTargetLocale($job->target_locale)
             ->setProviders($params->get('providers'))
             ->setContextBefore($params->get('context_before'))
-            ->setContextAfter($params->get('context_after'));
+            ->setContextAfter($params->get('context_after'))
+            ->setLimit($params->get('limit'));
 
         // dump($options);
 

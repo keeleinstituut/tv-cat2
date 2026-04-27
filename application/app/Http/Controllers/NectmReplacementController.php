@@ -21,7 +21,7 @@ class NectmReplacementController extends Controller
             'q' => 'string',
             'slang' => 'string',
             'tlang' => 'string',
-            // 'limit' => 'number',
+            'limit' => 'integer|min:1',
             // 'aut_trans' => 'string',
             // 'concordance' => 'boolean',
             // 'min_match' => 'number',
@@ -38,7 +38,8 @@ class NectmReplacementController extends Controller
             ->setTargetLocale($params->get('tlang'))
             ->setProviders(['tm'])
             ->setContextBefore(data_get($smeta, 'context_before'))
-            ->setContextAfter(data_get($smeta, 'context_after'));
+            ->setContextAfter(data_get($smeta, 'context_after'))
+            ->setLimit($params->get('limit'));
 
         if ($paramsTag = $params->get('tag')) {
             $options->setTranslationMemoryIds($paramsTag);

@@ -23,6 +23,7 @@ class SuggestionIndexRequest extends FormRequest
             'providers.*' => 'string',
             'translation_memory_ids' => 'array',
             'translation_memory_ids.*' => 'uuid',
+            'limit' => 'integer|min:1',
         ];
     }
 }

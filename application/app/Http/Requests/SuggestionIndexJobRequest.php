@@ -19,6 +19,7 @@ class SuggestionIndexJobRequest extends FormRequest
             'context_after' => 'string',
             'providers' => 'array',
             'providers.*' => 'string',
+            'limit' => 'integer|min:1',
         ];
     }
 }
