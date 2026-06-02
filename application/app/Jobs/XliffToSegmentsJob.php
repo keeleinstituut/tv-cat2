@@ -43,9 +43,10 @@ class XliffToSegmentsJob implements ShouldQueue
         $parser = new XliffParser();
         $xliff = $parser->xliffToArray($xliffContent);
 
-        $this->jobModel->xliff_parsed = $xliff;
-        $this->jobModel->save();
+        // $this->jobModel->xliff_parsed = $xliff;
+        // $this->jobModel->save();
 
+        $segmentPosition = 0;
         $segments = collect();
 
         foreach ($xliff['files'] as $file) {
@@ -65,21 +66,25 @@ class XliffToSegmentsJob implements ShouldQueue
                         'source' => $seg_source['raw-content'],
                         'xliff_internal_id' => $trans_unit[ 'attr' ][ 'id' ],
                         'xliff_mrk_id' => $seg_source[ 'mid' ],
+                        'position' => $segmentPosition,
                     ];
+                    $segmentPosition += 1;
+
                     $segments->push($segment);
+
+                    // Insert segments as a chunks of 100 items
+                    if ($segments->count() >= 100) {
+                        Segment::insert($segments->toArray());
+                        $segments = collect();
+                    }
                 }
             }
         }
 
-        $segments = $segments->map(function ($segment, $i) {
-            return [
-                'position' => $i,
-                ...$segment,
-            ];
-        });
-    
-
-        Segment::insert($segments->toArray());
+        // In case last chunk is not over 100 items
+        if ($segments->isNotEmpty()) {
+            Segment::insert($segments->toArray());
+        }
     }
 
     protected function _extractSegments( $fid, $file_info ) {
