@@ -44,6 +44,7 @@ Route::prefix('/jobs')
     ->whereUuid('id')->group(function (): void {
         Route::get('/', 'index');
         Route::post('/', 'store');
+        Route::post('/pretranslate', 'pretranslate');
         Route::get('/{id}', 'show');
         Route::put('/{id}', 'update');
         Route::delete('/{id}', 'destroy');

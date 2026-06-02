@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\JobIndexRequest;
+use App\Http\Requests\JobPretranslateRequest;
 use App\Http\Requests\JobStoreRequest;
 use App\Http\Resources\JobResource;
 use App\Jobs\XliffToSegmentsJob;
@@ -99,6 +100,13 @@ class JobController extends Controller
     // {
     //     //
     // }
+
+    public function pretranslate(JobPretranslateRequest $request)
+    {
+        $jobs = Job::getModel()->whereIn('id', $request->validated()['job_ids'])->get();
+        $jobs->each(fn($job) => PretranslateJob::dispatch($job));
+        return response()->noContent();
+    }
 
     private function getBaseQuery() {
         return Job::getModel();
