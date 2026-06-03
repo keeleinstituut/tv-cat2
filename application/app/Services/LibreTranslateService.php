@@ -2,52 +2,56 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Client\Pool;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use App\Services\Dto\GetSuggestionsOptions;
 
 
 class LibreTranslateService
 {
-    // private static $base = "http://matecat-filters:8732";
+    private const CHUNK_SIZE = 10;
 
     public static function translateSegments(GetSuggestionsOptions $options) {
-        // return Cache::remember("service.libretranslate/$options->q", 86400, function () use ($options) {
-            $responses = Http::pool(fn (Pool $pool) => [
-                $pool->post('http://host.docker.internal:6003/translate', [
-                    'q' => $options->q,
-                    'source' => self::transformLocale($options->sourceLocale),
-                    'target' => self::transformLocale($options->targetLocale),
-                ]),
+        $batch = self::translateBatch([$options->q], $options->sourceLocale, $options->targetLocale);
+        return $batch[$options->q] ?? [];
+    }
+
+    public static function translateBatch(array $sources, string $sourceLocale, string $targetLocale): array {
+        if (empty($sources)) {
+            return [];
+        }
+
+        $chunks = array_chunk($sources, self::CHUNK_SIZE);
+        $src = self::transformLocale($sourceLocale);
+        $tgt = self::transformLocale($targetLocale);
+
+        $result = [];
+        foreach ($chunks as $chunk) {
+            $response = Http::post('http://host.docker.internal:6003/translate', [
+                'q'      => $chunk,
+                'source' => $src,
+                'target' => $tgt,
             ]);
 
-            $mtResponse = $responses[0]->json();
-
-            if (isset($mtResponse['error'])) {
-                throw new \Exception("Error from LibreTranslate: " . $mtResponse['error'], 1);
+            $body = $response->json();
+            if (isset($body['error'])) {
+                throw new \Exception("Error from LibreTranslate: " . $body['error'], 1);
             }
 
-            return [
-                [
-                    'provider' => [
-                        'type' => 'MT',
-                        'name' => 'LibreTranslate'
-                    ],
-                    'source' => $options->q,
-                    'target' => $mtResponse['translatedText'],
-                ],
-            ];
-        // });
+            foreach ($chunk as $i => $source) {
+                $result[$source] = [[
+                    'provider' => ['type' => 'MT', 'name' => 'LibreTranslate'],
+                    'source'   => $source,
+                    'target'   => $body['translatedText'][$i],
+                ]];
+            }
+        }
+
+        return $result;
     }
 
     private static function transformLocale($locale)
     {
         return Str::of($locale)->explode('-')[0];
     }
-
-    // private static function client() {
-    //     return Http::baseUrl(static::$base);
-    // }
 }
