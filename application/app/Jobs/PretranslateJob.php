@@ -49,6 +49,10 @@ class PretranslateJob implements ShouldQueue
 
             $bestMatch = $this->getBestMatch($suggestions);
 
+            if (!$bestMatch) {
+                return;
+            }
+
             if ($segment->repetition_group) {
                 $this->jobModel->segments()
                     ->where('repetition_group', $segment->repetition_group)
@@ -69,8 +73,9 @@ class PretranslateJob implements ShouldQueue
             ->filter(function ($suggestion) {
                 return !!data_get($suggestion, 'score');
             })
-            ->sortBy('score')
+            ->sortByDesc('score')
             ->first();
+
 
         if ($bestScoreMatch && $bestScoreMatch['score'] >= 98) {
             return $bestScoreMatch;
