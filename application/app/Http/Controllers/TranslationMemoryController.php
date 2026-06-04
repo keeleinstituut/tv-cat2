@@ -166,13 +166,18 @@ class TranslationMemoryController extends Controller
         });
     }
 
-    // /**
-    //  * Remove the specified resource from storage.
-    //  */
-    // public function destroy(string $id)
-    // {
-    //     //
-    // }
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(string $id)
+    {
+        return DB::transaction(function () use ($id) {
+            $obj = $this->getBaseQuery()->findOrFail($id);
+            $obj->translationMemorySegments()->delete();
+            $obj->delete();
+            return TranslationMemoryResource::make($obj);
+        });
+    }
 
     public function export(TranslationMemoryExportRequest $request)
     {
