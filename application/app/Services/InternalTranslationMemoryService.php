@@ -36,9 +36,8 @@ class InternalTranslationMemoryService
         $seen = [];
         $uniqueForSql = [];
         foreach ($options->queries as $query) {
-            $key = $query->q . "\0" . ($query->contextBefore ?? '') . "\0" . ($query->contextAfter ?? '');
-            if (!isset($seen[$key])) {
-                $seen[$key] = true;
+            if (!isset($seen[$query->q])) {
+                $seen[$query->q] = true;
                 $uniqueForSql[] = $query;
             }
         }
@@ -47,12 +46,10 @@ class InternalTranslationMemoryService
         $sqlParams = [];
         foreach ($uniqueForSql as $query) {
             $len = strlen($query->q);
-            $valueRows[] = '(?::text, ?::int, ?::int, ?::text, ?::text)';
+            $valueRows[] = '(?::text, ?::int, ?::int)';
             $sqlParams[] = $query->q;
             $sqlParams[] = self::minLevenshteinLength($len, $minSimilarity);
             $sqlParams[] = self::maxLevenshteinLength($len, $minSimilarity);
-            $sqlParams[] = $query->contextBefore;
-            $sqlParams[] = $query->contextAfter;
         }
 
         $valuesSql = implode(', ', $valueRows);
@@ -64,16 +61,18 @@ class InternalTranslationMemoryService
             array_push($sqlParams, ...$options->translationMemoryIds);
         }
 
-        $lateralLimit = $options->limit !== null ? 'LIMIT ' . (int) $options->limit : '';
+        // Fetch a small candidate pool per source so that context-matching rows
+        // (which earn +1 in PHP) are not dropped before the PHP sort can see them.
+        // The PHP sort+slice below applies the final $options->limit after scoring.
+        $sqlLimit = $options->limit !== null ? max((int) $options->limit, 5) : null;
+        $lateralLimit = $sqlLimit !== null ? 'LIMIT ' . $sqlLimit : '';
 
         $sql = "
-            WITH queries(q, minlen, maxlen, ctx_before, ctx_after) AS (
+            WITH queries(q, minlen, maxlen) AS (
                 VALUES $valuesSql
             )
             SELECT
                 queries.q AS queried_source,
-                queries.ctx_before AS queried_ctx_before,
-                queries.ctx_after AS queried_ctx_after,
                 lateral_result.*
             FROM queries,
             LATERAL (
@@ -89,9 +88,7 @@ class InternalTranslationMemoryService
                       $tmFilter
                     ORDER BY source, target, source_context_before, source_context_after
                 ) deduped
-                ORDER BY score DESC,
-                         (source_context_before IS NOT DISTINCT FROM queries.ctx_before
-                          AND source_context_after IS NOT DISTINCT FROM queries.ctx_after) DESC
+                ORDER BY score DESC
                 $lateralLimit
             ) AS lateral_result
         ";
@@ -103,17 +100,15 @@ class InternalTranslationMemoryService
             ->get()
             ->keyBy('id');
 
-        $rawBySourceCtx = [];
+        $rawBySource = [];
         foreach ($results as $row) {
-            $key = $row->queried_source . "\0" . ($row->queried_ctx_before ?? '') . "\0" . ($row->queried_ctx_after ?? '');
-            $rawBySourceCtx[$key][] = $row;
+            $rawBySource[$row->queried_source][] = $row;
         }
 
         $grouped = [];
         foreach ($options->queries as $i => $query) {
             $suggestions = [];
-            $ctxKey = $query->q . "\0" . ($query->contextBefore ?? '') . "\0" . ($query->contextAfter ?? '');
-            foreach ($rawBySourceCtx[$ctxKey] ?? [] as $tmSegment) {
+            foreach ($rawBySource[$query->q] ?? [] as $tmSegment) {
                 $score = round($tmSegment->score * 100, 2);
                 if ($tmSegment->source_context_before == $query->contextBefore
                     && $tmSegment->source_context_after == $query->contextAfter) {
