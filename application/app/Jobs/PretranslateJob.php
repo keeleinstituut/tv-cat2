@@ -49,7 +49,10 @@ class PretranslateJob implements ShouldQueue
         $tmOptions = GetSuggestionsOptions::make()
             ->setSourceLocale($sourceLocale)
             ->setTargetLocale($targetLocale);
-        $tmResults = InternalTranslationMemoryService::getSuggestionsBatch($sources, $tmOptions);
+        foreach ($sources as $source) {
+            $tmOptions->addQuery($source);
+        }
+        $tmResults = InternalTranslationMemoryService::getSuggestionsBatch($tmOptions);
 
         // NT is pure regex — run per source before deciding MT candidates
         $ntResults = [];

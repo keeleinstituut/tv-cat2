@@ -12,8 +12,9 @@ class LibreTranslateService
     private const CHUNK_SIZE = 10;
 
     public static function translateSegments(GetSuggestionsOptions $options) {
-        $batch = self::translateBatch([$options->q], $options->sourceLocale, $options->targetLocale);
-        return $batch[$options->q] ?? [];
+        $q = $options->getQ();
+        $batch = self::translateBatch([$q], $options->sourceLocale, $options->targetLocale);
+        return $batch[$q] ?? [];
     }
 
     public static function translateBatch(array $sources, string $sourceLocale, string $targetLocale): array {

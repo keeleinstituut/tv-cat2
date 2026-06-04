@@ -13,19 +13,19 @@ class InternalTranslationMemoryService
 {
     public static function getSuggestions(GetSuggestionsOptions $options)
     {
-        $batch = self::getSuggestionsBatch([$options->q], $options);
-        return $batch[$options->q] ?? [];
+        $batch = self::getSuggestionsBatch($options);
+        return $batch[$options->getQ()] ?? [];
     }
 
     /**
      * Fetch TM suggestions for multiple source strings in a single SQL round-trip.
+     * Each query in $options->queries carries its own contextBefore/contextAfter.
      *
-     * @param string[] $queries  Unique source strings to look up.
      * @return array<string, array>  Map of source string => suggestions[].
      */
-    public static function getSuggestionsBatch(array $queries, GetSuggestionsOptions $options): array
+    public static function getSuggestionsBatch(GetSuggestionsOptions $options): array
     {
-        if (empty($queries)) {
+        if (empty($options->queries)) {
             return [];
         }
 
@@ -34,12 +34,14 @@ class InternalTranslationMemoryService
 
         $valueRows = [];
         $sqlParams = [];
-        foreach ($queries as $q) {
-            $len = strlen($q);
-            $valueRows[] = '(?::text, ?::int, ?::int)';
-            $sqlParams[] = $q;
+        foreach ($options->queries as $query) {
+            $len = strlen($query->q);
+            $valueRows[] = '(?::text, ?::int, ?::int, ?::text, ?::text)';
+            $sqlParams[] = $query->q;
             $sqlParams[] = self::minLevenshteinLength($len, $minSimilarity);
             $sqlParams[] = self::maxLevenshteinLength($len, $minSimilarity);
+            $sqlParams[] = $query->contextBefore;
+            $sqlParams[] = $query->contextAfter;
         }
 
         $valuesSql = implode(', ', $valueRows);
@@ -52,11 +54,13 @@ class InternalTranslationMemoryService
         }
 
         $sql = "
-            WITH queries(q, minlen, maxlen) AS (
+            WITH queries(q, minlen, maxlen, ctx_before, ctx_after) AS (
                 VALUES $valuesSql
             )
             SELECT
-                queries.q AS queried_source,
+                queries.q          AS queried_source,
+                queries.ctx_before AS queried_ctx_before,
+                queries.ctx_after  AS queried_ctx_after,
                 lateral_result.*
             FROM queries,
             LATERAL (
@@ -84,8 +88,8 @@ class InternalTranslationMemoryService
             $queriedSource = $tmSegment->queried_source;
             $score = round($tmSegment->score * 100, 2);
 
-            $matchesBefore = $tmSegment->source_context_before == $options->contextBefore;
-            $matchesAfter = $tmSegment->source_context_after == $options->contextAfter;
+            $matchesBefore = $tmSegment->source_context_before == $tmSegment->queried_ctx_before;
+            $matchesAfter  = $tmSegment->source_context_after  == $tmSegment->queried_ctx_after;
             if ($matchesBefore && $matchesAfter) {
                 $score += 1;
             }
