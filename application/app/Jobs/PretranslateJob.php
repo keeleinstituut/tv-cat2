@@ -105,8 +105,8 @@ class PretranslateJob implements ShouldQueue
 
             $data = [
                 'target' => $best['target'],
-                'score' => $best['score'],
-                'provider_type' => $best['provider']['type'],
+                'score' => data_get($best, 'score'),
+                'provider_type' => data_get($best, 'provider.type'),
             ];
 
             if ($segment->repetition_group) {
