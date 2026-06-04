@@ -48,10 +48,16 @@ class PretranslateJob implements ShouldQueue
         // Single SQL round-trip for all TM lookups
         $tmOptions = GetSuggestionsOptions::make()
             ->setSourceLocale($sourceLocale)
-            ->setTargetLocale($targetLocale);
-        foreach ($sources as $source) {
-            $tmOptions->addQuery($source);
+            ->setTargetLocale($targetLocale)
+            ->setLimit(1);
+
+        for ($i = 0; $i < $segments->count(); $i++) {
+            $previousSource = data_get($segments, $i - 1 . '.source');
+            $currentSource  = data_get($segments, $i . '.source');
+            $nextSource     = data_get($segments, $i + 1 . '.source');
+            $tmOptions->addQuery($currentSource, $previousSource, $nextSource);
         }
+
         $tmResults = InternalTranslationMemoryService::getSuggestionsBatch($tmOptions);
 
         // NT is pure regex — run per source before deciding MT candidates
@@ -65,8 +71,8 @@ class PretranslateJob implements ShouldQueue
         $bestMatches = [];
         $mtCandidates = [];
 
-        foreach ($sources as $source) {
-            $suggestions = array_merge($tmResults[$source] ?? [], $ntResults[$source] ?? []);
+        foreach ($sources as $idx => $source) {
+            $suggestions = array_merge($tmResults[$idx] ?? [], $ntResults[$source] ?? []);
             $best = $this->getBestMatch($suggestions);
             if ($best) {
                 $bestMatches[$source] = $best;
@@ -97,24 +103,35 @@ class PretranslateJob implements ShouldQueue
                 continue;
             }
 
+            $data = [
+                'target' => $best['target'],
+                'score' => $best['score'],
+                'provider_type' => $best['provider']['type'],
+            ];
+
             if ($segment->repetition_group) {
-                $groupUpdates[$segment->repetition_group] = $best['target'];
+                $groupUpdates[$segment->repetition_group] = $data;
             } else {
-                $individualUpdates[$segment->id] = $best['target'];
+                $individualUpdates[$segment->id] = $data;
             }
         }
 
         // Bulk update individual segments
         if (!empty($individualUpdates)) {
-            $placeholders = implode(', ', array_fill(0, count($individualUpdates), '(?, ?)'));
+            $placeholders = implode(', ', array_fill(0, count($individualUpdates), '(?, ?, ?, ?)'));
             $params = [];
-            foreach ($individualUpdates as $id => $target) {
+            foreach ($individualUpdates as $id => $targetData) {
                 $params[] = $id;
-                $params[] = $target;
+                $params[] = $targetData['target'];
+                $params[] = $targetData['provider_type'];
+                $params[] = $targetData['score'];
             }
             DB::statement(
-                "UPDATE segments SET target = v.target, updated_at = NOW()
-                 FROM (VALUES $placeholders) AS v(id, target)
+                "UPDATE segments SET
+                    target = v.target, updated_at = NOW(),
+                    pretranslate_suggestion_provider_type = v.provider_type,
+                    pretranslate_suggestion_score = v.score::decimal
+                 FROM (VALUES $placeholders) AS v(id, target, provider_type, score)
                  WHERE segments.id::text = v.id",
                 $params
             );
@@ -122,15 +139,20 @@ class PretranslateJob implements ShouldQueue
 
         // Bulk update repetition groups (updates all members including already-translated ones)
         if (!empty($groupUpdates)) {
-            $placeholders = implode(', ', array_fill(0, count($groupUpdates), '(?, ?)'));
+            $placeholders = implode(', ', array_fill(0, count($groupUpdates), '(?, ?, ?, ?)'));
             $params = [];
-            foreach ($groupUpdates as $groupId => $target) {
+            foreach ($groupUpdates as $groupId => $targetData) {
                 $params[] = $groupId;
-                $params[] = $target;
+                $params[] = $targetData['target'];
+                $params[] = $targetData['provider_type'];
+                $params[] = $targetData['score'];
             }
             DB::statement(
-                "UPDATE segments SET target = v.target, updated_at = NOW()
-                 FROM (VALUES $placeholders) AS v(group_id, target)
+                "UPDATE
+                    segments SET target = v.target, updated_at = NOW(),
+                    pretranslate_suggestion_provider_type = v.provider_type,
+                    pretranslate_suggestion_score = v.score::decimal
+                 FROM (VALUES $placeholders) AS v(group_id, target, provider_type, score)
                  WHERE segments.repetition_group::text = v.group_id",
                 $params
             );

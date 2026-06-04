@@ -40,19 +40,15 @@ class AnalyzeJob implements ShouldQueue
 
         $tmOptions = GetSuggestionsOptions::make()
             ->setSourceLocale($sourceLocale)
-            ->setTargetLocale($targetLocale);
-
-        // foreach ($segments->pluck('source')->unique() as $source) {
-        //     $tmOptions->addQuery($source);
-        // }
+            ->setTargetLocale($targetLocale)
+            ->setLimit(1);
 
         for ($i = 0; $i < $segments->count(); $i++) { 
             $previousSource = data_get($segments, $i - 1 . '.source');
             $currentSource  = data_get($segments, $i . '.source');
-            $nextSource     = data_get($segments, $i - 1 . '.source');
+            $nextSource     = data_get($segments, $i + 1 . '.source');
             $tmOptions->addQuery($currentSource, $previousSource, $nextSource);
         }
-
 
         $tmResults = InternalTranslationMemoryService::getSuggestionsBatch($tmOptions);
 
@@ -67,12 +63,12 @@ class AnalyzeJob implements ShouldQueue
             'no_match'     => ['segments' => 0, 'words' => 0, 'chars' => 0],
         ];
 
-        foreach ($segments as $segment) {
+        foreach ($segments as $i => $segment) {
             $plain = strip_tags($segment->source);
             $words = str_word_count($plain);
             $chars = mb_strlen($plain);
 
-            $band = $this->classifySegment($segment, $tmResults[$segment->source] ?? []);
+            $band = $this->classifySegment($segment, $tmResults[$i] ?? []);
 
             $bands[$band]['segments']++;
             $bands[$band]['words'] += $words;

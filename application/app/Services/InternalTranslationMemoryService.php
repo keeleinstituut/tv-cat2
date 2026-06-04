@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use App\Services\Dto\GetSuggestionsOptions;
 use App\Models\TranslationMemorySegment;
 use App\Models\TranslationMemory;
+use Log;
 
 
 class InternalTranslationMemoryService
@@ -14,14 +15,14 @@ class InternalTranslationMemoryService
     public static function getSuggestions(GetSuggestionsOptions $options)
     {
         $batch = self::getSuggestionsBatch($options);
-        return $batch[$options->getQ()] ?? [];
+        return $batch[0] ?? [];
     }
 
     /**
      * Fetch TM suggestions for multiple source strings in a single SQL round-trip.
      * Each query in $options->queries carries its own contextBefore/contextAfter.
      *
-     * @return array<string, array>  Map of source string => suggestions[].
+     * @return array<int, array>  Indexed by query position (same order as $options->queries).
      */
     public static function getSuggestionsBatch(GetSuggestionsOptions $options): array
     {
@@ -32,16 +33,23 @@ class InternalTranslationMemoryService
         $minSimilarity = 0.2;
         $table = TranslationMemorySegment::getModel()->getTable();
 
+        $seen = [];
+        $uniqueForSql = [];
+        foreach ($options->queries as $query) {
+            if (!isset($seen[$query->q])) {
+                $seen[$query->q] = true;
+                $uniqueForSql[] = $query;
+            }
+        }
+
         $valueRows = [];
         $sqlParams = [];
-        foreach ($options->queries as $query) {
+        foreach ($uniqueForSql as $query) {
             $len = strlen($query->q);
-            $valueRows[] = '(?::text, ?::int, ?::int, ?::text, ?::text)';
+            $valueRows[] = '(?::text, ?::int, ?::int)';
             $sqlParams[] = $query->q;
             $sqlParams[] = self::minLevenshteinLength($len, $minSimilarity);
             $sqlParams[] = self::maxLevenshteinLength($len, $minSimilarity);
-            $sqlParams[] = $query->contextBefore;
-            $sqlParams[] = $query->contextAfter;
         }
 
         $valuesSql = implode(', ', $valueRows);
@@ -53,26 +61,31 @@ class InternalTranslationMemoryService
             array_push($sqlParams, ...$options->translationMemoryIds);
         }
 
+        $lateralLimit = $options->limit !== null ? 'LIMIT ' . (int) $options->limit : '';
+
         $sql = "
-            WITH queries(q, minlen, maxlen, ctx_before, ctx_after) AS (
+            WITH queries(q, minlen, maxlen) AS (
                 VALUES $valuesSql
             )
             SELECT
-                queries.q          AS queried_source,
-                queries.ctx_before AS queried_ctx_before,
-                queries.ctx_after  AS queried_ctx_after,
+                queries.q AS queried_source,
                 lateral_result.*
             FROM queries,
             LATERAL (
-                SELECT DISTINCT ON (source, target, source_context_before, source_context_after)
-                    *,
-                    similarity(source, queries.q) AS score,
-                    length(source) AS source_length
-                FROM $table
-                WHERE length(source) BETWEEN queries.minlen AND queries.maxlen
-                  AND source_tsvector @@ phraseto_tsquery('simple', queries.q)
-                  $tmFilter
-                ORDER BY source, target, source_context_before, source_context_after
+                SELECT *
+                FROM (
+                    SELECT DISTINCT ON (source, target, source_context_before, source_context_after)
+                        *,
+                        similarity(source, queries.q) AS score,
+                        length(source) AS source_length
+                    FROM $table
+                    WHERE length(source) BETWEEN queries.minlen AND queries.maxlen
+                      AND source_tsvector @@ phraseto_tsquery('simple', queries.q)
+                      $tmFilter
+                    ORDER BY source, target, source_context_before, source_context_after
+                ) deduped
+                ORDER BY score DESC
+                $lateralLimit
             ) AS lateral_result
         ";
 
@@ -83,38 +96,40 @@ class InternalTranslationMemoryService
             ->get()
             ->keyBy('id');
 
-        $grouped = [];
-        foreach ($results as $tmSegment) {
-            $queriedSource = $tmSegment->queried_source;
-            $score = round($tmSegment->score * 100, 2);
-
-            $matchesBefore = $tmSegment->source_context_before == $tmSegment->queried_ctx_before;
-            $matchesAfter  = $tmSegment->source_context_after  == $tmSegment->queried_ctx_after;
-            if ($matchesBefore && $matchesAfter) {
-                $score += 1;
-            }
-
-            $grouped[$queriedSource][] = [
-                'provider' => [
-                    'type' => 'TM',
-                    'name' => $translationMemories[$tmSegment->translation_memory_id]->name,
-                    'translation_memory_id' => $tmSegment->translation_memory_id,
-                ],
-                'source' => $tmSegment->source,
-                'target' => $tmSegment->target,
-                'score' => $score,
-                'raw_score' => $tmSegment->score,
-                'updated_at' => $tmSegment->updated_at,
-                'meta' => [
-                    'source_context_before' => $tmSegment->source_context_before,
-                    'source_context_after' => $tmSegment->source_context_after,
-                    'target_context_before' => $tmSegment->target_context_before,
-                    'target_context_after' => $tmSegment->target_context_after,
-                ],
-            ];
+        $rawBySource = [];
+        foreach ($results as $row) {
+            $rawBySource[$row->queried_source][] = $row;
         }
 
-        foreach ($grouped as $source => &$suggestions) {
+        $grouped = [];
+        foreach ($options->queries as $i => $query) {
+            $suggestions = [];
+            foreach ($rawBySource[$query->q] ?? [] as $tmSegment) {
+                $score = round($tmSegment->score * 100, 2);
+                if ($tmSegment->source_context_before == $query->contextBefore
+                    && $tmSegment->source_context_after == $query->contextAfter) {
+                    $score += 1;
+                }
+                $suggestions[] = [
+                    'provider' => [
+                        'type' => 'TM',
+                        'name' => $translationMemories[$tmSegment->translation_memory_id]->name,
+                        'translation_memory_id' => $tmSegment->translation_memory_id,
+                    ],
+                    'source'     => $tmSegment->source,
+                    'target'     => $tmSegment->target,
+                    'score'      => $score,
+                    'raw_score'  => $tmSegment->score,
+                    'updated_at' => $tmSegment->updated_at,
+                    'meta' => [
+                        'source_context_before' => $tmSegment->source_context_before,
+                        'source_context_after'  => $tmSegment->source_context_after,
+                        'target_context_before' => $tmSegment->target_context_before,
+                        'target_context_after'  => $tmSegment->target_context_after,
+                    ],
+                ];
+            }
+
             $suggestions = collect($suggestions)
                 ->sortBy([['score', 'desc'], ['updated_at', 'desc']])
                 ->values()
@@ -123,8 +138,9 @@ class InternalTranslationMemoryService
             if ($options->limit !== null) {
                 $suggestions = array_slice($suggestions, 0, $options->limit);
             }
+
+            $grouped[$i] = $suggestions;
         }
-        unset($suggestions);
 
         return $grouped;
     }
