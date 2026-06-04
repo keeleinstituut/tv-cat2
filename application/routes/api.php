@@ -80,7 +80,7 @@ Route::prefix('/translation-memories')
         Route::post('/import', 'import');
         Route::post('/export', 'export');
         Route::put('/{id}', 'update');
-//        Route::delete('/{id}', 'destroy');
+        Route::delete('/{id}', 'destroy');
     });
 
 Route::post('/download', [\App\Http\Controllers\DownloadController::class, 'download']);
