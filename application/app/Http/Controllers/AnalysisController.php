@@ -5,8 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AnalysisIndexRequest;
 use App\Http\Requests\AnalysisStoreRequest;
 use App\Http\Resources\AnalysisResource;
+use App\Jobs\AnalyzeJob;
 use App\Models\Analysis;
-use Illuminate\Http\Request;
+use App\Models\Job;
 
 class AnalysisController extends Controller
 {
@@ -35,11 +36,16 @@ class AnalysisController extends Controller
     {
         $params = collect($request->validated());
 
-        return collect($params->get('job_id'))->map(function ($job_id) {
+        $analyses = collect($params->get('job_id'))->map(function ($job_id) {
+            $job = Job::findOrFail($job_id);
             $analysis = new Analysis();
             $analysis->job_id = $job_id;
-            return $analysis->save();
+            $analysis->save();
+            AnalyzeJob::dispatch($job, $analysis);
+            return $analysis;
         });
+
+        return AnalysisResource::collection($analyses);
     }
 
     // /**
