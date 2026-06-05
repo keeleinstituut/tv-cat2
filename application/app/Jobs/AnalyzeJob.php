@@ -43,7 +43,7 @@ class AnalyzeJob implements ShouldQueue
             ->setTargetLocale($targetLocale)
             ->setLimit(1);
 
-        for ($i = 0; $i < $segments->count(); $i++) { 
+        for ($i = 0; $i < $segments->count(); $i++) {
             $previousSource = data_get($segments, $i - 1 . '.source');
             $currentSource  = data_get($segments, $i . '.source');
             $nextSource     = data_get($segments, $i + 1 . '.source');
