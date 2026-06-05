@@ -45,17 +45,25 @@ class PretranslateJob implements ShouldQueue
 
         $sources = $untranslated->pluck('source')->unique()->values()->toArray();
 
+        // Build O(N) lookup maps so the TM query loop below is O(U) not O(U*N)
+        $segmentsValues = $segments->values();
+        $segmentIndexById = $segmentsValues->mapWithKeys(fn($s, $i) => [$s->id => $i])->all();
+        $firstUntranslatedBySource = [];
+        foreach ($untranslated as $s) {
+            $firstUntranslatedBySource[$s->source] ??= $s;
+        }
+
         // Single SQL round-trip for all TM lookups
         $tmOptions = GetSuggestionsOptions::make()
             ->setSourceLocale($sourceLocale)
             ->setTargetLocale($targetLocale)
             ->setLimit(1);
 
-        for ($i = 0; $i < $segments->count(); $i++) {
-            $previousSource = data_get($segments, $i - 1 . '.source');
-            $currentSource  = data_get($segments, $i . '.source');
-            $nextSource     = data_get($segments, $i + 1 . '.source');
-            $tmOptions->addQuery($currentSource, $previousSource, $nextSource);
+        foreach ($sources as $source) {
+            $i = $segmentIndexById[$firstUntranslatedBySource[$source]->id];
+            $previousSource = data_get($segmentsValues, $i - 1 . '.source');
+            $nextSource     = data_get($segmentsValues, $i + 1 . '.source');
+            $tmOptions->addQuery($source, $previousSource, $nextSource);
         }
 
         $tmResults = InternalTranslationMemoryService::getSuggestionsBatch($tmOptions);
