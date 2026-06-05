@@ -52,7 +52,7 @@ class NectmReplacementController extends Controller
             ->get();
 
         return [
-            'query' => $options->q,
+            'query' => $options->getQ(),
             'results' => collect($data)->map(function ($suggestion) {
                 return [
                     'tu' => [

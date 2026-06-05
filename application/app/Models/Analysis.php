@@ -11,6 +11,8 @@ class Analysis extends Model
     use HasFactory;
     use HasUuids;
 
+    protected $casts = ['results' => 'array'];
+
     public function job() {
         return $this->belongsTo(Job::class);
     }

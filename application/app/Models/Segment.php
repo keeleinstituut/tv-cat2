@@ -19,4 +19,8 @@ class Segment extends Model
         'xliff_mrk_id',
         'xliff_internal_id',
     ];
+
+    protected $casts = [
+        'pretranslate_suggestion_score' => 'double',
+    ];
 }
