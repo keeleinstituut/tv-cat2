@@ -40,8 +40,14 @@ class PretranslateJob implements ShouldQueue
             return;
         }
 
-        $sourceLocale = $this->jobModel->project->source_locale;
+        $project = $this->jobModel->project->load('translationMemories');
+        $sourceLocale = $project->source_locale;
         $targetLocale = $this->jobModel->target_locale;
+
+        $projectTmIds = $project->translationMemories
+            ->filter(fn($tm) => $tm->pivot->read)
+            ->pluck('id')
+            ->toArray();
 
         $sources = $untranslated->pluck('source')->unique()->values()->toArray();
 
@@ -58,6 +64,10 @@ class PretranslateJob implements ShouldQueue
             ->setSourceLocale($sourceLocale)
             ->setTargetLocale($targetLocale)
             ->setLimit(1);
+
+        if (!empty($projectTmIds)) {
+            $tmOptions->setTranslationMemoryIds($projectTmIds);
+        }
 
         foreach ($sources as $source) {
             $i = $segmentIndexById[$firstUntranslatedBySource[$source]->id];

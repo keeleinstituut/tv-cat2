@@ -38,10 +38,19 @@ class AnalyzeJob implements ShouldQueue
         $sourceLocale = $this->jobModel->project->source_locale;
         $targetLocale = $this->jobModel->target_locale;
 
+        $projectTmIds = $this->jobModel->project->translationMemories
+            ->filter(fn($tm) => $tm->pivot->read)
+            ->pluck('id')
+            ->toArray();
+
         $tmOptions = GetSuggestionsOptions::make()
             ->setSourceLocale($sourceLocale)
             ->setTargetLocale($targetLocale)
             ->setLimit(1);
+
+        if (!empty($projectTmIds)) {
+            $tmOptions->setTranslationMemoryIds($projectTmIds);
+        }
 
         for ($i = 0; $i < $segments->count(); $i++) {
             $previousSource = data_get($segments, $i - 1 . '.source');

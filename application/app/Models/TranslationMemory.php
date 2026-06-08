@@ -25,4 +25,9 @@ class TranslationMemory extends Model
     public function translationMemorySegments() {
         return $this->hasMany(TranslationMemorySegment::class);
     }
+
+    public function projects() {
+        return $this->belongsToMany(Project::class, 'project_translation_memory')
+            ->withPivot('read', 'write');
+    }
 }

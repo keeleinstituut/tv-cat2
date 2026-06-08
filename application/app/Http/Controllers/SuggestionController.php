@@ -41,7 +41,12 @@ class SuggestionController extends Controller
     {
         $params = collect($request->validated());
 
-        $job = Job::getModel()->findOrFail($jobId);
+        $job = Job::getModel()->with('project.translationMemories')->findOrFail($jobId);
+
+        $projectTmIds = $job->project->translationMemories
+            ->filter(fn($tm) => $tm->pivot->read)
+            ->pluck('id')
+            ->toArray();
 
         $options = GetSuggestionsOptions::make()
             ->setQ($params->get('q'))
@@ -52,7 +57,9 @@ class SuggestionController extends Controller
             ->setContextAfter($params->get('context_after'))
             ->setLimit($params->get('limit'));
 
-        // dump($options);
+        if (!empty($projectTmIds)) {
+            $options->setTranslationMemoryIds($projectTmIds);
+        }
 
         $data = SuggestionService::getSuggestions($options);
 

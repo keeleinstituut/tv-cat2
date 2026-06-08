@@ -199,13 +199,11 @@ class InternalTranslationMemoryService
             ];
         }, array_keys($options->queries), array_values($options->queries)), JSON_THROW_ON_ERROR);
 
-        // tmFilter lives INSIDE the candidates CTE. Integers need no escaping,
-        // so a single int[] literal is safe and also avoids the placeholder fan-out.
         $tmFilter = '';
         $tmParams = [];
         if ($options->translationMemoryIds !== null) {
-            $tmFilter = 'AND translation_memory_id = ANY(?::int[])';
-            $tmParams[] = '{' . implode(',', array_map('intval', $options->translationMemoryIds)) . '}';
+            $tmFilter = 'AND translation_memory_id = ANY(?::uuid[])';
+            $tmParams[] = '{' . implode(',', $options->translationMemoryIds) . '}';
         }
 
         // Exact limit per query — no inflation, because the SQL ORDER BY ranks
