@@ -7,7 +7,7 @@ class GetSuggestionsOptions
 {
     public ?string $sourceLocale = null;
     public ?string $targetLocale = null;
-    public ?array $translationMemoryIds = null;
+    public ?array $translationMemoryIds = [];
     public ?array $providers = null;
     public ?int $limit = null;
 
