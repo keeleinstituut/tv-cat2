@@ -83,6 +83,13 @@ Route::prefix('/translation-memories')
         Route::delete('/{id}', 'destroy');
     });
 
+Route::prefix('/translation-memory-segments')
+    ->controller(\App\Http\Controllers\TranslationMemorySegmentController::class)
+    ->whereUuid('id')->group(function (): void {
+        Route::get('/', 'index');
+        Route::put('/{id}', 'update');
+    });
+
 Route::post('/download', [\App\Http\Controllers\DownloadController::class, 'download']);
 
 Route::controller(\App\Http\Controllers\SuggestionController::class)
