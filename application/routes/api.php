@@ -87,6 +87,7 @@ Route::prefix('/translation-memory-segments')
     ->controller(\App\Http\Controllers\TranslationMemorySegmentController::class)
     ->whereUuid('id')->group(function (): void {
         Route::get('/', 'index');
+        Route::put('/replace', 'replace');
         Route::put('/{id}', 'update');
     });
 

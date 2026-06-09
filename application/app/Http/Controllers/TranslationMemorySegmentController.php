@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\TranslationMemorySegmentIndexRequest;
+use App\Http\Requests\TranslationMemorySegmentReplaceRequest;
 use App\Http\Requests\TranslationMemorySegmentUpdateRequest;
 use App\Http\Resources\TranslationMemorySegmentResource;
 use App\Models\TranslationMemorySegment;
@@ -27,12 +28,43 @@ class TranslationMemorySegmentController extends Controller
 
         $data = $query->paginate($params->get('per_page', 100));
 
-        return TranslationMemorySegmentResource::collection($data)
-            ->additional([
-                'meta' => [
-                    'count' => $query->count(),
-                ],
-            ]);
+        return TranslationMemorySegmentResource::collection($data);
+            // ->additional([
+            //     'meta' => [
+            //         'segment_count' => $query->count(),
+            //     ],
+            // ]);
+    }
+
+    public function replace(TranslationMemorySegmentReplaceRequest $request)
+    {
+        $params = collect($request->validated());
+        $source = $params->get('source');
+        $target = $params->get('target');
+        $replaceTarget = $params->get('replace_target', '');
+
+        $query = TranslationMemorySegment::getModel()
+            ->where('translation_memory_id', $params->get('translation_memory_id'));
+
+        if ($source) {
+            $query = $query->where('source', 'ilike', "%$source%");
+        }
+
+        if ($target) {
+            $query = $query->where('target', 'ilike', "%$target%");
+        }
+
+        $segments = $query->get();
+
+        foreach ($segments as $segment) {
+            $segment->target = str_replace($target, $replaceTarget, $segment->target);
+            $segment->save();
+        }
+
+        return response()->json([
+            'replaced_count' => $segments->count(),
+        ]);
+            // ->json(['segment_count' => $segments->count()]);
     }
 
     public function update(TranslationMemorySegmentUpdateRequest $request)
