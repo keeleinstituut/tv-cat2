@@ -29,7 +29,8 @@ class XliffToOriginalJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $originalFileConversion = XliffConverterService::convertXliffToOriginal($this->jobModel->targetXliffFileCollection->first());
+        $originalFileName = $this->jobModel->sourceFileCollection()->first()?->file_name ?? '';
+        $originalFileConversion = XliffConverterService::convertXliffToOriginal($this->jobModel->targetXliffFileCollection->first(), $originalFileName);
 
         $decodedContent = base64_decode($originalFileConversion['documentContent']);
 

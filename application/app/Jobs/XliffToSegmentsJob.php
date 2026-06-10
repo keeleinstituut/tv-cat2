@@ -15,6 +15,7 @@ use Matecat\XliffParser\XliffParser;
 
 use App\Models\Job;
 use App\Models\Segment;
+use App\Services\XmlInlineTagEncoder;
 
 
 class XliffToSegmentsJob implements ShouldQueue
@@ -40,6 +41,9 @@ class XliffToSegmentsJob implements ShouldQueue
         $xliffStream = $xliffFile->stream();
         $xliffContent = stream_get_contents($xliffStream);
 
+        $originalFileName = $this->jobModel->sourceFileCollection()->first()?->file_name ?? '';
+        $isXml = strtolower(pathinfo($originalFileName, PATHINFO_EXTENSION)) === 'xml';
+
         $parser = new XliffParser();
         $xliff = $parser->xliffToArray($xliffContent);
 
@@ -63,7 +67,7 @@ class XliffToSegmentsJob implements ShouldQueue
                     $segment = [
                         'id' => Str::uuid()->toString(),
                         'job_id' => $this->jobModel->id,
-                        'source' => $seg_source['raw-content'],
+                        'source' => $isXml ? XmlInlineTagEncoder::decode($seg_source['raw-content']) : $seg_source['raw-content'],
                         'xliff_internal_id' => $trans_unit[ 'attr' ][ 'id' ],
                         'xliff_mrk_id' => $seg_source[ 'mid' ],
                         'position' => $segmentPosition,
