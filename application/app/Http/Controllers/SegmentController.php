@@ -32,7 +32,53 @@ class SegmentController extends Controller
             $query = $query->where('target', 'ilike', "%$param%");
         }
 
-        $query = $query->orderBy('position', 'asc');
+        $hasEmpty = $params->get('filter_empty');
+        $hasNotEmpty = $params->get('filter_not_empty');
+        $hasFirstRepetition = $params->get('filter_first_repetition');
+
+        if ($hasEmpty || $hasNotEmpty || $hasFirstRepetition) {
+            $query = $query->where(function ($q) use ($hasEmpty, $hasNotEmpty, $hasFirstRepetition) {
+                if ($hasEmpty) {
+                    $q->orWhere(fn($q2) => $q2->whereNull('target')->orWhere('target', ''));
+                }
+                if ($hasNotEmpty) {
+                    $q->orWhere(fn($q2) => $q2->whereNotNull('target')->where('target', '!=', ''));
+                }
+                if ($hasFirstRepetition) {
+                    $q->orWhere(fn($q2) => $q2->whereNotNull('repetition_group')->whereColumn('repetition_group', 'id'));
+                }
+            });
+        }
+
+        $ptFilters = [
+            'filter_score_101' => fn($q) => $q->where('pretranslate_suggestion_score', '>', 100),
+            'filter_score_100' => fn($q) => $q->where('pretranslate_suggestion_score', 100),
+            'filter_score_99'  => fn($q) => $q->where('pretranslate_suggestion_score', 99),
+            'filter_fuzzy'     => fn($q) => $q->where('pretranslate_suggestion_provider_type', 'TM')->where('pretranslate_suggestion_score', '<', 99),
+            'filter_tm'        => fn($q) => $q->where('pretranslate_suggestion_provider_type', 'TM'),
+            'filter_nt'        => fn($q) => $q->where('pretranslate_suggestion_provider_type', 'NT'),
+            'filter_mt'        => fn($q) => $q->where('pretranslate_suggestion_provider_type', 'MT'),
+            'filter_no_match'  => fn($q) => $q->whereNull('pretranslate_suggestion_provider_type'),
+        ];
+        $activePtFilters = array_filter($ptFilters, fn($_, $key) => $params->get($key), ARRAY_FILTER_USE_BOTH);
+
+        if (!empty($activePtFilters)) {
+            $query = $query->where(function ($q) use ($activePtFilters) {
+                foreach ($activePtFilters as $fn) {
+                    $q->orWhere($fn);
+                }
+            });
+        }
+
+        match($params->get('sort')) {
+            'source_asc'  => $query = $query->orderBy('source', 'asc'),
+            'source_desc' => $query = $query->orderBy('source', 'desc'),
+            'shortest'    => $query = $query->orderByRaw('LENGTH(source) ASC'),
+            'longest'     => $query = $query->orderByRaw('LENGTH(source) DESC'),
+            'match_asc'   => $query = $query->orderByRaw('pretranslate_suggestion_score ASC NULLS LAST'),
+            'match_desc'  => $query = $query->orderByRaw('pretranslate_suggestion_score DESC NULLS LAST'),
+            default       => $query = $query->orderBy('position', 'asc'),
+        };
 
         $data = $query->paginate($params->get('per_page'));
 
