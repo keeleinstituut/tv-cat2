@@ -13,13 +13,25 @@ class SuggestionIndexJobRequest extends FormRequest
      */
     public function rules(): array
     {
+        if ($this->filled('segment_id')) {
+            return [
+                'segment_id'     => 'required|uuid',
+                'q'              => 'prohibited',
+                'context_before' => 'prohibited',
+                'context_after'  => 'prohibited',
+                'providers'      => 'array',
+                'providers.*'    => 'string',
+                'limit'          => 'integer|min:1',
+            ];
+        }
+
         return [
-            'q' => 'required|string',
-            'context_before' => 'string',
-            'context_after' => 'string',
-            'providers' => 'array',
-            'providers.*' => 'string',
-            'limit' => 'integer|min:1',
+            'q'              => 'required|string',
+            'context_before' => 'nullable|string',
+            'context_after'  => 'nullable|string',
+            'providers'      => 'array',
+            'providers.*'    => 'string',
+            'limit'          => 'integer|min:1',
         ];
     }
 }
