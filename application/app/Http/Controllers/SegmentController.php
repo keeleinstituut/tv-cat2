@@ -75,7 +75,7 @@ class SegmentController extends Controller
             'source_desc' => $query = $query->orderBy('source', 'desc'),
             'shortest'    => $query = $query->orderByRaw('LENGTH(source) ASC'),
             'longest'     => $query = $query->orderByRaw('LENGTH(source) DESC'),
-            'match_asc'   => $query = $query->orderByRaw('pretranslate_suggestion_score ASC NULLS LAST'),
+            'match_asc'   => $query = $query->orderByRaw('pretranslate_suggestion_score ASC NULLS FIRST'),
             'match_desc'  => $query = $query->orderByRaw('pretranslate_suggestion_score DESC NULLS LAST'),
             default       => $query = $query->orderBy('position', 'asc'),
         };
