@@ -404,6 +404,8 @@ class InternalTranslationMemoryService
                     'target' => $get( 'target.segment'),
                     'target_context_before' => $get( ['target.meta.context_before', 'target.meta.context_prev']),
                     'target_context_after' => $get( ['target.meta.context_after', 'target.meta.context_next']),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
             })
             ->filter(function ($unit) {

@@ -71,6 +71,8 @@ class XliffToSegmentsJob implements ShouldQueue
                         'xliff_internal_id' => $trans_unit[ 'attr' ][ 'id' ],
                         'xliff_mrk_id' => $seg_source[ 'mid' ],
                         'position' => $segmentPosition,
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ];
                     $segmentPosition += 1;
 
