@@ -7,7 +7,6 @@ use App\Http\Requests\SegmentUpdateRequest;
 use App\Http\Resources\SegmentResource;
 use App\Models\Segment;
 use App\Models\TranslationMemorySegment;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SegmentController extends Controller
@@ -119,26 +118,62 @@ class SegmentController extends Controller
             $query = $this->getBaseQuery();
             $obj = $query->find($id);
 
-            if ($obj->repetition_group && $params->get('save_repetitions', True)) {
-                $this->getBaseQuery()
-                    ->where('repetition_group', $obj->repetition_group)
-                    ->update([
+            if ($params->has('target')) {
+                if ($obj->repetition_group && $params->get('save_repetitions', True)) {
+                    $this->getBaseQuery()
+                        ->where('repetition_group', $obj->repetition_group)
+                        ->update([
+                            'target' => $params->get('target'),
+                        ]);
+                    $obj->refresh();
+                } else {
+                    $obj->fill([
                         'target' => $params->get('target'),
                     ]);
-                $obj->refresh();
-            } else {
-                $obj->fill([
-                    'target' => $params->get('target'),
-                ]);
+                    $obj->save();
+                }
+            }
+
+            if ($params->has('confirmed')) {
+                $obj->confirmed = $params->get('confirmed');
                 $obj->save();
             }
 
-            // $translationMemorySegment = TranslationMemorySegment::firstOrNew(['segment_id' => $obj->id]);
-            // $translationMemorySegment->fill([
-            //     'source' => $obj->source,
-            //     'target' => $obj->target,
-            // ]);
-            // $translationMemorySegment->save();
+            // TM saving part
+            if ($params->get('confirmed')) {
+                $prevSegment = Segment::where('job_id', $obj->job_id)
+                    ->where('position', '<', $obj->position)
+                    ->orderBy('position', 'desc')
+                    ->first();
+
+                $nextSegment = Segment::where('job_id', $obj->job_id)
+                    ->where('position', '>', $obj->position)
+                    ->orderBy('position', 'asc')
+                    ->first();
+
+                $writableTms = $obj->job
+                    ->project
+                    ->translationMemories()
+                    ->wherePivot('write', true)
+                    ->get();
+
+                foreach ($writableTms as $tm) {
+                    TranslationMemorySegment::updateOrCreate(
+                        [
+                            'translation_memory_id' => $tm->id,
+                            'segment_id'            => $obj->id,
+                        ],
+                        [
+                            'source'                => $obj->source,
+                            'source_context_before' => $prevSegment?->source,
+                            'source_context_after'  => $nextSegment?->source,
+                            'target'                => $obj->target,
+                            'target_context_before' => $prevSegment?->target,
+                            'target_context_after'  => $nextSegment?->target,
+                        ]
+                    );
+                }
+            }
 
             return SegmentResource::make($obj);
         });
