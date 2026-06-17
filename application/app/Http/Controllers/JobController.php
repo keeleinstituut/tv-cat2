@@ -78,7 +78,7 @@ class JobController extends Controller
     public function show(string $id)
     {
         $query = $this->getBaseQuery();
-        $obj = $query->find($id);
+        $obj = $query->findOrFail($id);
 
         $obj->load('project', 'xliffFileCollection');
 

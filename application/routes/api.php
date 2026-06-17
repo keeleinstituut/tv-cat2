@@ -57,6 +57,7 @@ Route::prefix('/segments')
         Route::get('/', 'index');
 //        Route::post('/', 'store');
 //        Route::get('/{id}', 'show');
+        Route::put('/bulk', 'bulkUpdate');
         Route::put('/{id}', 'update');
 //        Route::delete('/{id}', 'destroy');
     });
