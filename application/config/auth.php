@@ -40,6 +40,10 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'keycloak-jwt' => [
+            'driver' => 'keycloak-jwt',
+            'provider' => 'users',
+        ],
     ],
 
     /*

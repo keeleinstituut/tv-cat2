@@ -6,12 +6,15 @@
     "license": "MIT",
     "require": {
         "php": "^8.1",
+        "firebase/php-jwt": "^7.1",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
+        "laravel/socialite": "^5.28",
         "laravel/tinker": "^2.8",
         "matecat/xliff-parser": "^2.0",
         "predis/predis": "^3.3",
+        "socialiteproviders/keycloak": "^5.3",
         "spatie/laravel-medialibrary": "^11.0.0"
     },
     "require-dev": {
