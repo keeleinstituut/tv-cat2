@@ -5,7 +5,6 @@ namespace App\Services;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 
 
@@ -89,5 +88,22 @@ class KeycloakService
         }
 
         return $response;
+    }
+
+    public function validateToken(string $token): object
+    {
+        $jwks = $this->retrieveJwks();
+        $decoded = JWT::decode($token, $jwks);
+
+        if ($decoded->iss !== $this->getRealmUrl()) {
+            throw new \RuntimeException('Invalid token issuer');
+        }
+
+        $aud = (array) $decoded->aud;
+        if (! in_array($this->getClientId(), $aud, true) && ! in_array('account', $aud, true)) {
+            throw new \RuntimeException('Invalid token audience');
+        }
+
+        return $decoded;
     }
 }

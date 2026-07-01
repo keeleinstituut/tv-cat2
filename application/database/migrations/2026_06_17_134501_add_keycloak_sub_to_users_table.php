@@ -12,11 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('keycloak_sub')->nullable()->after('id');
-            $table->string('tolkevarav_institution_id')->nullable()->after('id');
-            $table->string('tolkevarav_institution_user_id')->nullable()->after('id');
+            $table->string('keycloak_sub')->nullable()->unique()->after('id');
+            $table->string('tolkevarav_personal_identification_code')->nullable()->after('id');
 
-            $table->unique(['keycloak_sub', 'tolkevarav_institution_id', 'tolkevarav_institution_user_id']);
         });
     }
 
@@ -24,8 +22,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn('keycloak_sub');
-            $table->dropColumn('tolkevarav_institution_id');
-            $table->dropColumn('tolkevarav_institution_user_id');
+            $table->dropColumn('tolkevarav_personal_identification_code');
         });
     }
 };

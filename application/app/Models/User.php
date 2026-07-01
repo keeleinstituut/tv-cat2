@@ -19,8 +19,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'keycloak_sub',
-        'tolkevarav_institution_id',
-        'tolkevarav_institution_user_id',
+        'tolkevarav_personal_identification_code',
         'name',
         'email',
         'password',

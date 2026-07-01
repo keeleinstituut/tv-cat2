@@ -3,12 +3,14 @@
 namespace App\Auth\Guards;
 
 use App\Services\KeycloakService;
-use Firebase\JWT\JWT;
 use Illuminate\Auth\GuardHelpers;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
+// This guard's purpose currently is only for machine usage over API.
+// End-users will be authenticating over cookie-based solution.
 class KeycloakJwtGuard implements Guard
 {
     use GuardHelpers;
@@ -32,8 +34,13 @@ class KeycloakJwtGuard implements Guard
         }
 
         try {
-            $payload = $this->validateToken($token);
+            $payload = $this->keycloakService->validateToken($token);
         } catch (\Throwable) {
+            return null;
+        }
+
+        // Only allow service accounts to access over Bearer token authentication
+        if (!Str::startsWith($payload->preferred_username, 'service-account-')) {
             return null;
         }
 
@@ -57,20 +64,4 @@ class KeycloakJwtGuard implements Guard
         return false;
     }
 
-    private function validateToken(string $token): object
-    {
-        $jwks = $this->keycloakService->retrieveJwks();
-        $decoded = JWT::decode($token, $jwks);
-
-        if ($decoded->iss !== $this->keycloakService->getRealmUrl()) {
-            throw new \RuntimeException('Invalid token issuer');
-        }
-
-        $aud = (array) $decoded->aud;
-        if (! in_array($this->keycloakService->getClientId(), $aud, true) && ! in_array('account', $aud, true)) {
-            throw new \RuntimeException('Invalid token audience');
-        }
-
-        return $decoded;
-    }
 }

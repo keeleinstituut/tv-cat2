@@ -25,32 +25,19 @@ class AuthController extends Controller
         $tolkevaravClaim = data_get($keycloakUser->getRaw(), 'tolkevarav');
         $tolkevaravForename = data_get($tolkevaravClaim, 'forename');
         $tolkevaravSurname = data_get($tolkevaravClaim, 'surname');
-        $tolkevaravInstitutionId = data_get($tolkevaravClaim, 'selectedInstitution.id');
-        $tolkevaravInstitutionUserId = data_get($tolkevaravClaim, 'institutionUserId');
+        $tolkevaravPersonalIdentificationCode = data_get($tolkevaravClaim, 'personalIdentificationCode');
         $tolkevaravName = $tolkevaravForename . ' ' . $tolkevaravSurname;
         $keycloakName = $keycloakUser->getName() ?? $keycloakUser->getNickname() ?? $keycloakUser->getId();
 
         $user = User::updateOrCreate(
             [
                 'keycloak_sub' => $keycloakUser->getId(),
-                'tolkevarav_institution_id' => $tolkevaravInstitutionId,
-                'tolkevarav_institution_user_id' => $tolkevaravInstitutionUserId,
             ],
             [
                 'name' => !empty(str_replace(' ', '', $tolkevaravName)) ? $tolkevaravName : $keycloakName,
+                'tolkevarav_personal_identification_code' => $tolkevaravPersonalIdentificationCode,
             ]
         );
-
-        // dump([
-        //     'iid' => $tolkevaravInstitutionId,
-        //     'iuid' => $tolkevaravInstitutionUserId,
-        //     'keyucloakUser' => $keycloakUser,
-        //     'methods' => get_class_methods($keycloakUser),
-        //     'test' => $keycloakUser->getRaw(),
-        //     'test2' => $tolkevaravClaim,
-        //     'user' => $user,
-        // ]);
-        // return;
 
         Auth::guard('web')->login($user, remember: false);
 
