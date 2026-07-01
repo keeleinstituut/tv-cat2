@@ -39,4 +39,8 @@ return [
         'realms'        => env('KEYCLOAK_REALM'),
     ],
 
+    'tv_authorization' => [
+        'base_url' => env('TV_AUTHORIZATION_BASE_URL'),
+    ]
+
 ];

@@ -2,23 +2,22 @@
 
 namespace App\Auth\Guards;
 
+use App\Services\KeycloakService;
 use Firebase\JWT\JWT;
-use Firebase\JWT\JWK;
 use Illuminate\Auth\GuardHelpers;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class KeycloakJwtGuard implements Guard
 {
     use GuardHelpers;
+    private readonly KeycloakService $keycloakService;
 
     public function __construct(UserProvider $provider, private Request $request)
     {
         $this->provider = $provider;
+        $this->keycloakService = app()->get(KeycloakService::class);
     }
 
     public function user(): ?\Illuminate\Contracts\Auth\Authenticatable
@@ -38,19 +37,15 @@ class KeycloakJwtGuard implements Guard
             return null;
         }
 
-        $user = $this->provider->retrieveByCredentials(['keycloak_sub' => $payload->sub]);
-
-        if (! $user) {
-            $user = $this->provider->retrieveByCredentials(['email' => $payload->email ?? null]);
-        }
+        $user = $this->provider->retrieveByCredentials([
+            'keycloak_sub' => $payload->sub
+        ]);
 
         if (! $user) {
             $userModel = config('auth.providers.users.model');
             $user = new $userModel();
             $user->keycloak_sub = $payload->sub;
             $user->name = $payload->name ?? $payload->preferred_username ?? $payload->sub;
-            // $user->email = $payload->email ?? ($payload->sub . '@keycloak.local');
-            // $user->password = '';
             $user->save();
         }
 
@@ -64,24 +59,15 @@ class KeycloakJwtGuard implements Guard
 
     private function validateToken(string $token): object
     {
-        $keys = Cache::remember('keycloak_jwks', 3600, function () {
-            $response = Http::get(config('keycloak.jwks_uri'));
-            return $response->json();
-        });
+        $jwks = $this->keycloakService->retrieveJwks();
+        $decoded = JWT::decode($token, $jwks);
 
-        $realmUrl = config('keycloak.realm_url');
-        $clientId = config('keycloak.client_id');
-
-        $keysParsed = JWK::parseKeySet($keys);
-
-        $decoded = JWT::decode($token, $keysParsed);
-
-        if ($decoded->iss !== $realmUrl) {
+        if ($decoded->iss !== $this->keycloakService->getRealmUrl()) {
             throw new \RuntimeException('Invalid token issuer');
         }
 
         $aud = (array) $decoded->aud;
-        if (! in_array($clientId, $aud, true) && ! in_array('account', $aud, true)) {
+        if (! in_array($this->keycloakService->getClientId(), $aud, true) && ! in_array('account', $aud, true)) {
             throw new \RuntimeException('Invalid token audience');
         }
 
