@@ -29,6 +29,10 @@ class UserPrivileges
             }, []);
     }
 
+    public function hasPrivilege(string $institutionId, string $privilege) {
+        return collect($this->getPrivilegesPerInstitution()[$institutionId])->contains($privilege);
+    }
+
     public function getInstitutionsForPrivilege(string $privilege) {
         return $this->getInstitutionsPerPrivilege()[$privilege];
     }

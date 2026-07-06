@@ -27,7 +27,7 @@ class {{ class }}
     /**
      * Determine whether the user can create models.
      */
-    public function create({{ user }} $user): bool
+    public function create({{ user }} $user, {{ model }} ${{ modelVariable }}): bool
     {
         //
     }

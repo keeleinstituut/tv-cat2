@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TranslationMemorySegment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 use App\Models\TranslationMemory;
@@ -39,6 +40,8 @@ class TranslationMemoryController extends Controller
     public function index(TranslationMemoryIndexRequest $request)
     {
         $params = collect($request->validated());
+
+        $this->authorize('viewAny', TranslationMemory::class);
 
         $query = $this->getBaseQuery();
 
@@ -106,6 +109,9 @@ class TranslationMemoryController extends Controller
                 'target_locale',
                 'meta',
             ])->filter()->toArray(), $obj->fill(...));
+
+            $this->authorize('create', $obj);
+
             $obj->save();
 
             return TranslationMemoryResource::make($obj);
@@ -119,6 +125,8 @@ class TranslationMemoryController extends Controller
     {
         $query = $this->getBaseQuery();
         $obj = $query->findOrFail($id);
+
+        $this->authorize('view', $obj);
 
         return TranslationMemoryResource::make($obj)
             ->additional([
@@ -138,6 +146,8 @@ class TranslationMemoryController extends Controller
 
             $query = $this->getBaseQuery();
             $obj = $query->findOrFail($id);
+
+            $this->authorize('update', $obj);
 
             // $obj = new TranslationMemory();
             tap($params->only([
@@ -173,6 +183,9 @@ class TranslationMemoryController extends Controller
     {
         return DB::transaction(function () use ($id) {
             $obj = $this->getBaseQuery()->findOrFail($id);
+
+            $this->authorize('delete', $obj);
+
             $obj->translationMemorySegments()->delete();
             $obj->delete();
             return TranslationMemoryResource::make($obj);
@@ -185,7 +198,10 @@ class TranslationMemoryController extends Controller
         $combined = (bool) $params->get('combined', false);
         $ids      = $params->get('translation_memory_ids');
 
-        $tms = TranslationMemory::whereIn('id', $ids)->get();
+        $tms = $this->getBaseQuery()->whereIn('id', $ids)->get();
+
+        // Check permissions for each TranslationMemory
+        $tms->each(fn ($obj) => $this->authorize('export', $obj));
 
         $zipPath   = tempnam(sys_get_temp_dir(), 'tm_export_') . '.zip';
         $zip       = new \ZipArchive();
@@ -235,6 +251,8 @@ class TranslationMemoryController extends Controller
 
         $query = $this->getBaseQuery();
         $obj = $query->find($params->get('translation_memory_id'));
+
+        $this->authorize('import', $obj);
 
         collect($params->get('files'))
             ->each(function ($file) use ($obj) {

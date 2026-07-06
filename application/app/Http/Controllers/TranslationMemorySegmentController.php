@@ -6,6 +6,7 @@ use App\Http\Requests\TranslationMemorySegmentIndexRequest;
 use App\Http\Requests\TranslationMemorySegmentReplaceRequest;
 use App\Http\Requests\TranslationMemorySegmentUpdateRequest;
 use App\Http\Resources\TranslationMemorySegmentResource;
+use App\Models\TranslationMemory;
 use App\Models\TranslationMemorySegment;
 
 class TranslationMemorySegmentController extends Controller
@@ -13,8 +14,13 @@ class TranslationMemorySegmentController extends Controller
     public function index(TranslationMemorySegmentIndexRequest $request)
     {
         $params = collect($request->validated());
+
+        $translationMemory = TranslationMemory::find($params->get('translation_memory_id'));
+
+        $this->authorize('viewAnySegments', $translationMemory);
+
         $query = TranslationMemorySegment::getModel()
-            ->where('translation_memory_id', $params->get('translation_memory_id'));
+            ->where('translation_memory_id', $translationMemory->id);
 
         if ($param = $params->get('source')) {
             $query = $query->where('source', 'ilike', "%$param%");
@@ -43,8 +49,11 @@ class TranslationMemorySegmentController extends Controller
         $target = $params->get('target');
         $replaceTarget = $params->get('replace_target', '');
 
+        $translationMemory = TranslationMemory::find($params->get('translation_memory_id'));
+        $this->authorize('updateAnySegments', $translationMemory);
+
         $query = TranslationMemorySegment::getModel()
-            ->where('translation_memory_id', $params->get('translation_memory_id'));
+            ->where('translation_memory_id', $translationMemory->id);
 
         if ($source) {
             $query = $query->where('source', 'ilike', "%$source%");
@@ -73,6 +82,9 @@ class TranslationMemorySegmentController extends Controller
         $params = collect($request->validated());
 
         $obj = TranslationMemorySegment::findOrFail($id);
+
+        $this->authorize('updateAnySegments', $obj->translationMemory);
+
         $obj->fill(['target' => $params->get('target')]);
         $obj->save();
 
