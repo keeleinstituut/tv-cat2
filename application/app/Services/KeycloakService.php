@@ -79,7 +79,7 @@ class KeycloakService
             'client_id' => $this->clientId,
             'client_secret' => $this->clientSecret,
         ])->throw()->json();
-        
+
         // Adjust cache TTL to be shorter than token TTL to ensure some leeway for token usage.
         $ttl = max([0, $response['expires_in'] - 300]);
 

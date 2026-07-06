@@ -98,8 +98,6 @@ class TranslationMemoryPolicy
         return $user->isServiceAccount() || $user->userPrivileges()->hasPrivilege($institutionId, 'EDIT_TM');
     }
 
-    
-
     // Should serve as an query enhancement to Eloquent queries
     // to filter out objects that the user does not have permissions to.
     //

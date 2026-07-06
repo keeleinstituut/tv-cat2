@@ -21,7 +21,6 @@ class AuthController extends Controller
     {
         $keycloakUser = Socialite::driver('keycloak')->user();
 
-        
         $tolkevaravClaim = data_get($keycloakUser->getRaw(), 'tolkevarav');
         $tolkevaravForename = data_get($tolkevaravClaim, 'forename');
         $tolkevaravSurname = data_get($tolkevaravClaim, 'surname');
