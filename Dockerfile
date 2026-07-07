@@ -1,5 +1,24 @@
 # syntax = docker/dockerfile:1.4.0
 
+# ============================================================================
+# Stage 1: Build react web application
+# ============================================================================
+
+FROM node:23.10.0-alpine AS web-builder
+
+ENV VITE_API_BASE_URL ''
+
+WORKDIR /build
+
+COPY ./application-web ./
+
+RUN yarn install --frozen-lockfile
+RUN yarn build
+
+# ============================================================================
+# Stage 2: Runtime - Minimal production image
+# ============================================================================
+
 FROM composer:latest as composer
 FROM php:8.3.0-fpm-alpine3.19 as runtime
 
@@ -20,6 +39,7 @@ RUN docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql && \
                                 exif \
                                 zip
 
+COPY --chown=www-data:www-data --from=web-builder /build/dist /app-web-build
 COPY --chown=www-data:www-data ./application ${APP_ROOT}
 WORKDIR $APP_ROOT
 
@@ -64,8 +84,14 @@ server {
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         fastcgi_param PATH_INFO \$fastcgi_path_info;
     }
-    location / {
+    location /api/ {
         try_files \$uri \$uri/ /index.php?\$query_string;
+        gzip_static on;
+    }
+
+    location / {
+        root /app-web-build;
+        try_files \$uri /index.html;
         gzip_static on;
     }
 }
