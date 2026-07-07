@@ -131,6 +131,7 @@ class TranslationMemoryController extends Controller
         return TranslationMemoryResource::make($obj)
             ->additional([
                 'segment_count' => InternalTranslationMemoryService::getSegmentCount($obj->id),
+                'edit_url' => env('FRONTEND_URL') . '/translation-memories/' . $obj->id . '/edit',
             ]);
     }
 
