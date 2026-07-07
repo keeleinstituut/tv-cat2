@@ -31,4 +31,16 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'keycloak' => [
+        'client_id'     => env('KEYCLOAK_CLIENT_ID'),
+        'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),
+        'redirect'      => env('KEYCLOAK_REDIRECT_URI'),
+        'base_url'      => env('KEYCLOAK_BASE_URL'),
+        'realms'        => env('KEYCLOAK_REALM'),
+    ],
+
+    'tv_authorization' => [
+        'base_url' => env('TV_AUTHORIZATION_BASE_URL'),
+    ]
+
 ];

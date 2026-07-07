@@ -15,7 +15,7 @@ class AnalysisStoreRequest extends FormRequest
     {
         return [
             'job_id' => 'required|array',
-            'job_id.*' => 'uuid',
+            'job_id.*' => 'uuid|exists:jobs,id',
         ];
     }
 }

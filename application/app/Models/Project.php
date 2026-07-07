@@ -19,4 +19,9 @@ class Project extends Model
     public function jobs() {
         return $this->hasMany(Job::class);
     }
+
+    public function translationMemories() {
+        return $this->belongsToMany(TranslationMemory::class, 'project_translation_memory')
+            ->withPivot('read', 'write');
+    }
 }

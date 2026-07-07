@@ -15,15 +15,16 @@ class NoTranslateService
     ];
 
     public static function getSuggestions(GetSuggestionsOptions $options) {
+        $q = $options->getQ();
         foreach (static::$REGEX_LIST as $re) {
-            if (preg_match($re, $options->q)) {
+            if (preg_match($re, $q)) {
                 return [
                     [
                         'provider' => [
                             'type' => 'NT',
                         ],
-                        'source' => $options->q,
-                        'target' => $options->q,
+                        'source' => $q,
+                        'target' => $q,
                         'score' => 100,
                     ],
                 ];

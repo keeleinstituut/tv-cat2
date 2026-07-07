@@ -15,6 +15,7 @@ use Matecat\XliffParser\XliffParser;
 
 use App\Models\Job;
 use App\Models\Segment;
+use App\Services\XmlInlineTagEncoder;
 
 
 class XliffToSegmentsJob implements ShouldQueue
@@ -40,12 +41,16 @@ class XliffToSegmentsJob implements ShouldQueue
         $xliffStream = $xliffFile->stream();
         $xliffContent = stream_get_contents($xliffStream);
 
+        $originalFileName = $this->jobModel->sourceFileCollection()->first()?->file_name ?? '';
+        $isXml = strtolower(pathinfo($originalFileName, PATHINFO_EXTENSION)) === 'xml';
+
         $parser = new XliffParser();
         $xliff = $parser->xliffToArray($xliffContent);
 
-        $this->jobModel->xliff_parsed = $xliff;
-        $this->jobModel->save();
+        // $this->jobModel->xliff_parsed = $xliff;
+        // $this->jobModel->save();
 
+        $segmentPosition = 0;
         $segments = collect();
 
         foreach ($xliff['files'] as $file) {
@@ -62,24 +67,30 @@ class XliffToSegmentsJob implements ShouldQueue
                     $segment = [
                         'id' => Str::uuid()->toString(),
                         'job_id' => $this->jobModel->id,
-                        'source' => $seg_source['raw-content'],
+                        'source' => $isXml ? XmlInlineTagEncoder::decode($seg_source['raw-content']) : $seg_source['raw-content'],
                         'xliff_internal_id' => $trans_unit[ 'attr' ][ 'id' ],
                         'xliff_mrk_id' => $seg_source[ 'mid' ],
+                        'position' => $segmentPosition,
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ];
+                    $segmentPosition += 1;
+
                     $segments->push($segment);
+
+                    // Insert segments as a chunks of 100 items
+                    if ($segments->count() >= 100) {
+                        Segment::insert($segments->toArray());
+                        $segments = collect();
+                    }
                 }
             }
         }
 
-        $segments = $segments->map(function ($segment, $i) {
-            return [
-                'position' => $i,
-                ...$segment,
-            ];
-        });
-    
-
-        Segment::insert($segments->toArray());
+        // In case last chunk is not over 100 items
+        if ($segments->isNotEmpty()) {
+            Segment::insert($segments->toArray());
+        }
     }
 
     protected function _extractSegments( $fid, $file_info ) {

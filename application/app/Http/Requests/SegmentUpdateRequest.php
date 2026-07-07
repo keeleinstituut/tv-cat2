@@ -16,6 +16,7 @@ class SegmentUpdateRequest extends FormRequest
         return [
             'target' => 'nullable|string',
             'save_repetitions' => 'boolean',
+            'confirmed' => 'boolean',
         ];
     }
 }

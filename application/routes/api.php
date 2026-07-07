@@ -14,10 +14,13 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-//Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-//    return $request->user();
-//});
-
+Route::prefix('/auth')
+    ->controller(\App\Http\Controllers\AuthController::class)
+    ->group(function (): void {
+        Route::get('/login', 'login')->middleware('web');
+        Route::get('/callback', 'callback')->middleware('web');
+        Route::get('/user', 'user')->middleware('auth:web');
+    });
 
 Route::prefix('/playground')
     ->controller(\App\Http\Controllers\PlaygroundController::class)
@@ -29,71 +32,86 @@ Route::prefix('/playground')
 
 Route::get('/playground', [\App\Http\Controllers\PlaygroundController::class, 'index']);
 
-Route::prefix('/projects')
-    ->controller(\App\Http\Controllers\ProjectController::class)
-    ->whereUuid('id')->group(function (): void {
-        Route::get('/', 'index');
-        Route::post('/', 'store');
-        Route::get('/{id}', 'show');
-        Route::put('/{id}', 'update');
-        Route::delete('/{id}', 'destroy');
-    });
+Route::middleware(['auth:web,keycloak-jwt'])->group(function (): void {
+// Route::middleware([])->group(function (): void {
 
-Route::prefix('/jobs')
-    ->controller(\App\Http\Controllers\JobController::class)
-    ->whereUuid('id')->group(function (): void {
-        Route::get('/', 'index');
-        Route::post('/', 'store');
-        Route::get('/{id}', 'show');
-        Route::put('/{id}', 'update');
-        Route::delete('/{id}', 'destroy');
-        Route::post('/{id}/download', 'download');
-    });
+    Route::prefix('/projects')
+        ->controller(\App\Http\Controllers\ProjectController::class)
+        ->whereUuid('id')->group(function (): void {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::get('/{id}', 'show');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
+        });
 
-Route::prefix('/segments')
-    ->controller(\App\Http\Controllers\SegmentController::class)
-    ->whereUuid('id')->group(function (): void {
-        Route::get('/', 'index');
-//        Route::post('/', 'store');
-//        Route::get('/{id}', 'show');
-        Route::put('/{id}', 'update');
-//        Route::delete('/{id}', 'destroy');
-    });
+    Route::prefix('/jobs')
+        ->controller(\App\Http\Controllers\JobController::class)
+        ->whereUuid('id')->group(function (): void {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::post('/pretranslate', 'pretranslate');
+            Route::get('/{id}', 'show');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
+            Route::post('/{id}/download', 'download');
+        });
 
-Route::prefix('/analyses')
-    ->controller(\App\Http\Controllers\AnalysisController::class)
-    ->whereUuid('id')->group(function (): void {
-        Route::get('/', 'index');
-        Route::post('/', 'store');
-//        Route::get('/{id}', 'show');
-//        Route::put('/{id}', 'update');
-//        Route::delete('/{id}', 'destroy');
-    });
+    Route::prefix('/segments')
+        ->controller(\App\Http\Controllers\SegmentController::class)
+        ->whereUuid('id')->group(function (): void {
+            Route::get('/', 'index');
+    //        Route::post('/', 'store');
+    //        Route::get('/{id}', 'show');
+            Route::put('/bulk', 'bulkUpdate');
+            Route::put('/{id}', 'update');
+    //        Route::delete('/{id}', 'destroy');
+        });
 
-Route::prefix('/translation-memories')
-    ->controller(\App\Http\Controllers\TranslationMemoryController::class)
-    ->whereUuid('id')->group(function (): void {
-        Route::get('/', 'index');
-        Route::post('/', 'store');
-        Route::get('/{id}', 'show');
-        Route::post('/import', 'import');
-        Route::post('/export', 'export');
-        Route::put('/{id}', 'update');
-        Route::delete('/{id}', 'destroy');
-    });
+    Route::prefix('/analyses')
+        ->controller(\App\Http\Controllers\AnalysisController::class)
+        ->whereUuid('id')->group(function (): void {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+    //        Route::get('/{id}', 'show');
+    //        Route::put('/{id}', 'update');
+    //        Route::delete('/{id}', 'destroy');
+        });
 
-Route::post('/download', [\App\Http\Controllers\DownloadController::class, 'download']);
+    Route::prefix('/translation-memories')
+        ->controller(\App\Http\Controllers\TranslationMemoryController::class)
+        ->whereUuid('id')->group(function (): void {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::get('/{id}', 'show');
+            Route::post('/import', 'import');
+            Route::post('/export', 'export');
+            Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
+        });
 
-Route::controller(\App\Http\Controllers\SuggestionController::class)
-    ->whereUuid('job_id')
-    ->group(function (): void {
-        Route::get('/suggestions', 'index');
-        Route::get('/jobs/{job_id}/suggestions', 'indexJob');
-    });
+    Route::prefix('/translation-memory-segments')
+        ->controller(\App\Http\Controllers\TranslationMemorySegmentController::class)
+        ->whereUuid('id')->group(function (): void {
+            Route::get('/', 'index');
+            Route::put('/replace', 'replace');
+            Route::put('/{id}', 'update');
+        });
 
-Route::prefix('/nectm-replacement')
-    ->controller(\App\Http\Controllers\NectmReplacementController::class)
-    ->group(function (): void {
-        Route::get('/tm', 'index');
-        Route::post('/tm', 'store');
-    });
+    Route::post('/download', [\App\Http\Controllers\DownloadController::class, 'download']);
+
+    Route::controller(\App\Http\Controllers\SuggestionController::class)
+        ->whereUuid('job_id')
+        ->group(function (): void {
+            Route::get('/suggestions', 'index');
+            Route::get('/jobs/{job_id}/suggestions', 'indexJob');
+        });
+
+    Route::prefix('/nectm-replacement')
+        ->controller(\App\Http\Controllers\NectmReplacementController::class)
+        ->group(function (): void {
+            Route::get('/tm', 'index');
+            Route::post('/tm', 'store');
+        });
+
+}); // end auth:web,keycloak-jwt

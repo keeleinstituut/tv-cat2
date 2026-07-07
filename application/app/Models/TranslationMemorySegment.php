@@ -23,4 +23,8 @@ class TranslationMemorySegment extends Model
         'target_context_before',
         'target_context_after',
     ];
+
+    public function translationMemory() {
+        return $this->belongsTo(TranslationMemory::class);
+    }
 }

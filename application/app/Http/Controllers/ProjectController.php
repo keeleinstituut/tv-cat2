@@ -48,7 +48,7 @@ class ProjectController extends Controller
     public function show($id)
     {
         $query = $this->getBaseQuery();
-        $obj = $query->find($id);
+        $obj = $query->with('translationMemories')->find($id);
 
         return ProjectResource::make($obj);
     }
@@ -65,9 +65,18 @@ class ProjectController extends Controller
            $query = $this->getBaseQuery();
            $obj = $query->find($id);
 
-           $obj->fill($params->toArray());
+           $obj->fill($params->only(['name', 'source_locale'])->filter()->toArray());
            $obj->save();
 
+           if ($params->has('translation_memories')) {
+               $syncData = collect($params->get('translation_memories'))
+                   ->keyBy('id')
+                   ->map(fn($tm) => ['read' => $tm['read'], 'write' => $tm['write']])
+                   ->toArray();
+               $obj->translationMemories()->sync($syncData);
+           }
+
+           $obj->load('translationMemories');
            return ProjectResource::make($obj);
         });
     }

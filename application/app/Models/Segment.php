@@ -15,8 +15,18 @@ class Segment extends Model
         'job_id',
         'source',
         'target',
+        'confirmed',
         'position',
         'xliff_mrk_id',
         'xliff_internal_id',
     ];
+
+    protected $casts = [
+        'pretranslate_suggestion_score' => 'double',
+        'confirmed'                     => 'boolean',
+    ];
+
+    public function job() {
+        return $this->belongsTo(Job::class);
+    }
 }

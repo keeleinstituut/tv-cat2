@@ -20,6 +20,16 @@ class ProjectResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'source_locale' => $this->source_locale,
+            'translation_memories' => $this->whenLoaded('translationMemories', fn() =>
+                $this->translationMemories->map(fn($tm) => [
+                    'id'            => $tm->id,
+                    'name'          => $tm->name,
+                    'source_locale' => $tm->source_locale,
+                    'target_locale' => $tm->target_locale,
+                    'read'          => (bool) $tm->pivot->read,
+                    'write'         => (bool) $tm->pivot->write,
+                ])
+            ),
 //            'media' => $this->whenLoaded('media'),
 //            'media2' => $this->getMedia('*'),
         ];

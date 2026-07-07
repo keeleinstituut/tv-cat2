@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Http\Resources\SuggestionResource;
 use App\Http\Requests\SuggestionIndexRequest;
 use App\Http\Requests\SuggestionIndexJobRequest;
 use App\Services\SuggestionService;
 use App\Services\Dto\GetSuggestionsOptions;
 use App\Models\Job;
+use App\Models\Segment;
 
 class SuggestionController extends Controller
 {
@@ -41,18 +41,45 @@ class SuggestionController extends Controller
     {
         $params = collect($request->validated());
 
-        $job = Job::getModel()->findOrFail($jobId);
+        $job = Job::getModel()->with('project.translationMemories')->findOrFail($jobId);
+
+        $projectTmIds = $job->project->translationMemories
+            ->filter(fn($tm) => $tm->pivot->read)
+            ->pluck('id')
+            ->toArray();
+
+        if ($segmentId = $params->get('segment_id')) {
+            $segment = Segment::where('id', $segmentId)
+                ->where('job_id', $jobId)
+                ->firstOrFail();
+
+            $contextBefore = Segment::where('job_id', $jobId)
+                ->where('position', '<', $segment->position)
+                ->orderBy('position', 'desc')
+                ->value('source');
+
+            $contextAfter = Segment::where('job_id', $jobId)
+                ->where('position', '>', $segment->position)
+                ->orderBy('position', 'asc')
+                ->value('source');
+        } else {
+            $segment = null;
+            $contextBefore = $params->get('context_before');
+            $contextAfter = $params->get('context_after');
+        }
 
         $options = GetSuggestionsOptions::make()
-            ->setQ($params->get('q'))
+            ->setQ($segment ? $segment->source : $params->get('q'))
             ->setSourceLocale($job->project->source_locale)
             ->setTargetLocale($job->target_locale)
             ->setProviders($params->get('providers'))
-            ->setContextBefore($params->get('context_before'))
-            ->setContextAfter($params->get('context_after'))
+            ->setContextBefore($contextBefore)
+            ->setContextAfter($contextAfter)
             ->setLimit($params->get('limit'));
 
-        // dump($options);
+        if (!empty($projectTmIds)) {
+            $options->setTranslationMemoryIds($projectTmIds);
+        }
 
         $data = SuggestionService::getSuggestions($options);
 

@@ -2,73 +2,99 @@
 
 namespace App\Services\Dto;
 
-use Illuminate\Http\Client\Pool;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Cache;
-
 
 class GetSuggestionsOptions
 {
-  public string $q;
-  public ?string $sourceLocale = null;
-  public ?string $targetLocale = null;
-  public ?array $translationMemoryIds = null;
-  public ?array $providers = null;
-  public ?string $contextBefore = null;
-  public ?string $contextAfter = null;
-  public ?int $limit = null;
+    public ?string $sourceLocale = null;
+    public ?string $targetLocale = null;
+    public ?array $translationMemoryIds = [];
+    public ?array $providers = null;
+    public ?int $limit = null;
 
+    /** @var BatchSuggestionQuery[] */
+    public array $queries = [];
 
-  public static function make(): self
-  {
-    return new self();
-  }
+    public static function make(): self
+    {
+        return new self();
+    }
 
-  public function setQ(string $q): self
-  {
-    $this->q = $q;
-    return $this;
-  }
+    public function getQ(): string
+    {
+        return $this->queries[0]->q ?? '';
+    }
 
-  public function setSourceLocale(?string $sourceLocale): self
-  {
-    $this->sourceLocale = $sourceLocale;
-    return $this;
-  }
+    // Backward-compat single-query setters — manage $queries[0]
 
-  public function setTargetLocale(?string $targetLocale): self
-  {
-    $this->targetLocale = $targetLocale;
-    return $this;
-  }
+    public function setQ(string $q): self
+    {
+        if (empty($this->queries)) {
+            $this->queries[] = new BatchSuggestionQuery($q);
+        } else {
+            $this->queries[0]->q = $q;
+        }
+        return $this;
+    }
 
-  public function setTranslationMemoryIds(?array $translationMemoryIds): self
-  {
-    $this->translationMemoryIds = $translationMemoryIds;
-    return $this;
-  }
+    public function setContextBefore(?string $contextBefore): self
+    {
+        if (empty($this->queries)) {
+            $this->queries[] = new BatchSuggestionQuery('');
+        }
+        $this->queries[0]->contextBefore = $contextBefore;
+        return $this;
+    }
 
-  public function setProviders(?array $providers): self
-  {
-    $this->providers = $providers;
-    return $this;
-  }
+    public function setContextAfter(?string $contextAfter): self
+    {
+        if (empty($this->queries)) {
+            $this->queries[] = new BatchSuggestionQuery('');
+        }
+        $this->queries[0]->contextAfter = $contextAfter;
+        return $this;
+    }
 
-  public function setContextBefore(?string $contextBefore): self
-  {
-    $this->contextBefore = $contextBefore;
-    return $this;
-  }
+    // Multi-query methods
 
-  public function setContextAfter(?string $contextAfter): self
-  {
-    $this->contextAfter = $contextAfter;
-    return $this;
-  }
+    public function addQuery(string $q, ?string $contextBefore = null, ?string $contextAfter = null): self
+    {
+        $this->queries[] = new BatchSuggestionQuery($q, $contextBefore, $contextAfter);
+        return $this;
+    }
 
-  public function setLimit(?int $limit): self
-  {
-    $this->limit = $limit;
-    return $this;
-  }
+    public function setQueries(array $queries): self
+    {
+        $this->queries = $queries;
+        return $this;
+    }
+
+    public function setSourceLocale(?string $sourceLocale): self
+    {
+        $this->sourceLocale = $sourceLocale;
+        return $this;
+    }
+
+    public function setTargetLocale(?string $targetLocale): self
+    {
+        $this->targetLocale = $targetLocale;
+        return $this;
+    }
+
+    public function setTranslationMemoryIds(?array $translationMemoryIds): self
+    {
+        $this->translationMemoryIds = $translationMemoryIds;
+        return $this;
+    }
+
+    public function setProviders(?array $providers): self
+    {
+        $this->providers = $providers;
+        return $this;
+    }
+
+    public function setLimit(?int $limit): self
+    {
+        $this->limit = $limit;
+        return $this;
+    }
 }

@@ -16,12 +16,11 @@ class AnalysisResource extends JsonResource
     {
         return [
             ...parent::toArray($request),
-            'type' => 'Default',
-            'provider' => 'John Smith',
             'languages' => [
                 'source' => $this->job->project->source_locale,
                 'target' => $this->job->target_locale,
-            ]
+            ],
+            'results' => $this->results,
         ];
     }
 }
