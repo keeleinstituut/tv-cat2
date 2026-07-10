@@ -4,16 +4,19 @@ namespace App\Policies;
 
 use App\Models\TranslationMemory;
 use App\Models\User;
+use App\Policies\Concerns\ChecksTenantPrivilege;
 use Illuminate\Auth\Access\Response;
 
 class TranslationMemoryPolicy
 {
+    use ChecksTenantPrivilege;
+
     /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user): bool
     {
-        return $user->isServiceAccount() || \count($user->userPrivileges()->getInstitutionsForPrivilege('VIEW_TM')) > 0;
+        return $user->isServiceAccount() || \count($this->tenantsWithPrivilege($user, 'VIEW_TM')) > 0;
     }
 
     /**
@@ -21,8 +24,7 @@ class TranslationMemoryPolicy
      */
     public function view(User $user, TranslationMemory $translationMemory): bool
     {
-        $institutionId = $translationMemory->meta['institution_id'];
-        return $user->isServiceAccount() || $user->userPrivileges()->hasPrivilege($institutionId, 'VIEW_TM');
+        return $this->userHasPrivilege($user, $translationMemory->tenant_id, 'VIEW_TM');
     }
 
     /**
@@ -30,8 +32,7 @@ class TranslationMemoryPolicy
      */
     public function create(User $user, TranslationMemory $translationMemory): bool
     {
-        $institutionId = $translationMemory->meta['institution_id'];
-        return $user->isServiceAccount() || $user->userPrivileges()->hasPrivilege($institutionId, 'CREATE_TM');
+        return $this->userHasPrivilege($user, $translationMemory->tenant_id, 'CREATE_TM');
     }
 
     /**
@@ -39,8 +40,7 @@ class TranslationMemoryPolicy
      */
     public function update(User $user, TranslationMemory $translationMemory): bool
     {
-        $institutionId = $translationMemory->meta['institution_id'];
-        return $user->isServiceAccount() || $user->userPrivileges()->hasPrivilege($institutionId, 'EDIT_TM');
+        return $this->userHasPrivilege($user, $translationMemory->tenant_id, 'EDIT_TM');
     }
 
     /**
@@ -48,8 +48,7 @@ class TranslationMemoryPolicy
      */
     public function import(User $user, TranslationMemory $translationMemory): bool
     {
-        $institutionId = $translationMemory->meta['institution_id'];
-        return $user->isServiceAccount() || $user->userPrivileges()->hasPrivilege($institutionId, 'IMPORT_TM');
+        return $this->userHasPrivilege($user, $translationMemory->tenant_id, 'IMPORT_TM');
     }
 
     /**
@@ -57,8 +56,7 @@ class TranslationMemoryPolicy
      */
     public function export(User $user, TranslationMemory $translationMemory): bool
     {
-        $institutionId = $translationMemory->meta['institution_id'];
-        return $user->isServiceAccount() || $user->userPrivileges()->hasPrivilege($institutionId, 'EXPORT_TM');
+        return $this->userHasPrivilege($user, $translationMemory->tenant_id, 'EXPORT_TM');
     }
 
     /**
@@ -66,8 +64,7 @@ class TranslationMemoryPolicy
      */
     public function delete(User $user, TranslationMemory $translationMemory): bool
     {
-        $institutionId = $translationMemory->meta['institution_id'];
-        return $user->isServiceAccount() || $user->userPrivileges()->hasPrivilege($institutionId, 'DELETE_TM');
+        return $this->userHasPrivilege($user, $translationMemory->tenant_id, 'DELETE_TM');
     }
 
     /**
@@ -88,14 +85,12 @@ class TranslationMemoryPolicy
 
     public function viewAnySegments(User $user, TranslationMemory $translationMemory): bool
     {
-        $institutionId = $translationMemory->meta['institution_id'];
-        return $user->isServiceAccount() || $user->userPrivileges()->hasPrivilege($institutionId, 'VIEW_TM');
+        return $this->userHasPrivilege($user, $translationMemory->tenant_id, 'VIEW_TM');
     }
 
     public function updateAnySegments(User $user, TranslationMemory $translationMemory): bool
     {
-        $institutionId = $translationMemory->meta['institution_id'];
-        return $user->isServiceAccount() || $user->userPrivileges()->hasPrivilege($institutionId, 'EDIT_TM');
+        return $this->userHasPrivilege($user, $translationMemory->tenant_id, 'EDIT_TM');
     }
 
     // Should serve as an query enhancement to Eloquent queries
@@ -120,6 +115,8 @@ class TranslationMemoryPolicy
 // Scope resides in the same file with Policy to enforce scope creation with policy creation.
 namespace App\Policies\Scope;
 
+use App\Policies\Concerns\TenantScope;
+use Auth;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope as IScope;
@@ -130,6 +127,16 @@ class TranslationMemoryScope implements IScope {
     */
     public function apply(Builder $builder, Model $model): void
     {
-        // $builder->where('field', 'value');
+        $user = Auth::user();
+        $tenantIds = TenantScope::allowedTenantIds($user, 'VIEW_TM');
+
+        if ($tenantIds === null) {
+            return;
+        }
+
+        $builder->where(function ($q) use ($tenantIds) {
+            $q->whereIn('tenant_id', $tenantIds)
+                ->orWhereNot('visibility', 'private');
+        });
     }
 }

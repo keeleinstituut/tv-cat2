@@ -8,6 +8,9 @@ use App\Http\Resources\AnalysisResource;
 use App\Jobs\AnalyzeJob;
 use App\Models\Analysis;
 use App\Models\Job;
+use App\Models\JobAnalysis;
+use App\Models\Project;
+use Illuminate\Support\Facades\DB;
 
 class AnalysisController extends Controller
 {
@@ -17,15 +20,26 @@ class AnalysisController extends Controller
     public function index(AnalysisIndexRequest $request)
     {
         $params = collect($request->validated());
-        $query = $this->getBaseQuery();
 
-        if ($param = $params->get('project_id')) {
-            $query = $query->whereHas('job', function ($q) use ($param) {
-                $q->where('project_id', $param);
-            });
+        $projectId = $params->get('project_id');
+
+        if ($projectId) {
+            $this->authorize('view', Project::findOrFail($projectId));
+        } else {
+            $this->authorize('viewAny', Analysis::class);
         }
 
-        $data = $query->paginate();
+        $query = $this->getBaseQuery()
+            ->with('jobAnalyses.job.project')
+            ->with('jobAnalyses.job.sourceFileCollection');
+
+        if ($projectId) {
+            $query->where('project_id', $projectId);
+        }
+
+        $data = $query
+            ->orderBy('created_at', 'desc')
+            ->paginate($params->get('per_page'));
         return AnalysisResource::collection($data);
     }
 
@@ -34,27 +48,52 @@ class AnalysisController extends Controller
      */
     public function store(AnalysisStoreRequest $request)
     {
-        $params = collect($request->validated());
+        $jobs = collect($request->validated('job_id'))->map(fn ($id) => Job::findOrFail($id));
 
-        $analyses = collect($params->get('job_id'))->map(function ($job_id) {
-            $job = Job::findOrFail($job_id);
-            $analysis = new Analysis();
-            $analysis->job_id = $job_id;
-            $analysis->save();
-            AnalyzeJob::dispatch($job, $analysis);
-            return $analysis;
+        if ($jobs->pluck('project_id')->unique()->count() > 1) {
+            abort(422, 'All jobs must belong to the same project.');
+        }
+
+        $project = $jobs->first()->project;
+        $tmIds = $project->translationMemories
+            ->filter(fn ($tm) => $tm->pivot->read)
+            ->pluck('id')
+            ->values()
+            ->all();
+
+        $analysis = new Analysis();
+        $analysis->project_id = $project->id;
+        $analysis->translation_memory_ids = $tmIds;
+
+        $this->authorize('create', $analysis);
+
+        $analysis->save();
+
+        $jobs->each(function ($job) use ($analysis) {
+            $jobAnalysis = new JobAnalysis();
+            $jobAnalysis->job_id = $job->id;
+            $jobAnalysis->analysis_id = $analysis->id;
+            $jobAnalysis->save();
+            AnalyzeJob::dispatch($job, $jobAnalysis);
         });
 
-        return AnalysisResource::collection($analyses);
+        return new AnalysisResource($analysis->load('jobAnalyses.job.project'));
     }
 
-    // /**
-    //  * Display the specified resource.
-    //  */
-    // public function show(string $id)
-    // {
-    //     //
-    // }
+    /**
+     * Display the specified resource.
+     */
+    public function show(string $id)
+    {
+        $analysis = $this->getBaseQuery()
+            ->with('jobAnalyses.job.project')
+            ->with('jobAnalyses.job.sourceFileCollection')
+            ->findOrFail($id);
+
+        $this->authorize('view', $analysis);
+
+        return new AnalysisResource($analysis);
+    }
 
     // /**
     //  * Update the specified resource in storage.
@@ -64,13 +103,21 @@ class AnalysisController extends Controller
     //     //
     // }
 
-    // /**
-    //  * Remove the specified resource from storage.
-    //  */
-    // public function destroy(string $id)
-    // {
-    //     //
-    // }
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(string $id)
+    {
+        return DB::transaction(function () use ($id) {
+            $obj = $this->getBaseQuery()->findOrFail($id);
+
+            $this->authorize('delete', $obj);
+
+            $obj->jobAnalyses()->delete();
+            $obj->delete();
+            return AnalysisResource::make($obj);
+        });
+    }
 
     private function getBaseQuery() {
         return Analysis::getModel();

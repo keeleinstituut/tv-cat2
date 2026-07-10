@@ -17,6 +17,7 @@ class DownloadController extends Controller
         $type = $params->get('type');
 
         $jobs = Job::getModel()->whereIn('id', $jobIds)->get();
+        $jobs->each(fn ($job) => $this->authorize('view', $job));
 
         $files = $jobs->map(function ($job) use ($type) {
             switch ($type) {

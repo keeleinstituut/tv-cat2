@@ -15,7 +15,7 @@ class TranslationMemorySegmentController extends Controller
     {
         $params = collect($request->validated());
 
-        $translationMemory = TranslationMemory::find($params->get('translation_memory_id'));
+        $translationMemory = TranslationMemory::findOrFail($params->get('translation_memory_id'));
 
         $this->authorize('viewAnySegments', $translationMemory);
 
@@ -50,7 +50,7 @@ class TranslationMemorySegmentController extends Controller
         $target = $params->get('target');
         $replaceTarget = $params->get('replace_target', '');
 
-        $translationMemory = TranslationMemory::find($params->get('translation_memory_id'));
+        $translationMemory = TranslationMemory::findOrFail($params->get('translation_memory_id'));
         $this->authorize('updateAnySegments', $translationMemory);
 
         $query = TranslationMemorySegment::getModel()

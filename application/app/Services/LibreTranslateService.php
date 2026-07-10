@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use App\Services\Dto\GetSuggestionsOptions;
@@ -22,11 +23,25 @@ class LibreTranslateService
             return [];
         }
 
-        $chunks = array_chunk($sources, self::CHUNK_SIZE);
         $src = self::transformLocale($sourceLocale);
         $tgt = self::transformLocale($targetLocale);
 
         $result = [];
+        $uncached = [];
+        foreach (array_unique($sources) as $source) {
+            $cached = Cache::get(self::cacheKey($source, $src, $tgt));
+            if ($cached !== null) {
+                $result[$source] = self::buildTranslation($source, $cached);
+            } else {
+                $uncached[] = $source;
+            }
+        }
+
+        if (empty($uncached)) {
+            return $result;
+        }
+
+        $chunks = array_chunk($uncached, self::CHUNK_SIZE);
         foreach ($chunks as $chunk) {
             $response = Http::post('http://host.docker.internal:6003/translate', [
                 'q'      => $chunk,
@@ -40,15 +55,27 @@ class LibreTranslateService
             }
 
             foreach ($chunk as $i => $source) {
-                $result[$source] = [[
-                    'provider' => ['type' => 'MT', 'name' => 'LibreTranslate'],
-                    'source'   => $source,
-                    'target'   => $body['translatedText'][$i],
-                ]];
+                $target = $body['translatedText'][$i];
+                $result[$source] = self::buildTranslation($source, $target);
+                Cache::forever(self::cacheKey($source, $src, $tgt), $target);
             }
         }
 
         return $result;
+    }
+
+    private static function buildTranslation(string $source, string $target): array
+    {
+        return [[
+            'provider' => ['type' => 'MT', 'name' => 'LibreTranslate'],
+            'source'   => $source,
+            'target'   => $target,
+        ]];
+    }
+
+    private static function cacheKey(string $source, string $src, string $tgt): string
+    {
+        return "libretranslate:{$src}:{$tgt}:" . md5($source);
     }
 
     private static function transformLocale($locale)

@@ -42,7 +42,10 @@ class NectmReplacementController extends Controller
             ->setLimit($params->get('limit'));
 
         if ($paramsTag = $params->get('tag')) {
-            $options->setTranslationMemoryIds($paramsTag);
+            $authorizedTms = TranslationMemory::getModel()->whereIn('id', $paramsTag)->get();
+            $authorizedTms->each(fn ($tm) => $this->authorize('view', $tm));
+
+            $options->setTranslationMemoryIds($authorizedTms->pluck('id')->values()->all());
         }
 
         $data = SuggestionService::getSuggestions($options);
@@ -116,6 +119,9 @@ class NectmReplacementController extends Controller
 
         collect($params['tag'])
             ->each(function ($tagId) use ($params, $smeta, $tmeta) {
+                $translationMemory = TranslationMemory::findOrFail($tagId);
+                $this->authorize('updateAnySegments', $translationMemory);
+
                 $obj = TranslationMemorySegment::make([
                     'translation_memory_id' => $tagId,
                     'source' => data_get($params, 'stext'),

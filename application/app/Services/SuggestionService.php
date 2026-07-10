@@ -13,8 +13,8 @@ class SuggestionService
 {
     public static function getSuggestions(GetSuggestionsOptions $options) {
         $providerFunctions = [
-            'mt' => fn () => LibreTranslateService::translateSegments($options),
-            'nt' => fn () => NoTranslateService::getSuggestions($options),
+            // 'mt' => fn () => LibreTranslateService::translateSegments($options),
+            // 'nt' => fn () => NoTranslateService::getSuggestions($options),
             'tm' => fn () => InternalTranslationMemoryService::getSuggestions($options),
         ];
 

@@ -34,7 +34,8 @@ class PretranslateJob implements ShouldQueue
     public function handle(): void
     {
         $segments = $this->jobModel->segments()->orderBy('position')->get();
-        $untranslated = $segments->filter(fn($s) => !$s->target);
+        // $untranslated = $segments->filter(fn($s) => !$s->target);
+        $untranslated = $segments;
 
         if ($untranslated->isEmpty()) {
             return;

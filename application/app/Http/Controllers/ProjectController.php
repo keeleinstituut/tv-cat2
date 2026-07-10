@@ -7,6 +7,7 @@ use App\Http\Requests\ProjectStoreRequest;
 use App\Http\Requests\ProjectUpdateRequest;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
+use App\Models\TranslationMemory;
 use Illuminate\Support\Facades\DB;
 
 class ProjectController extends Controller
@@ -17,6 +18,9 @@ class ProjectController extends Controller
     public function index(ProjectIndexRequest $request)
     {
         $params = collect($request->validated());
+
+        $this->authorize('viewAny', Project::class);
+
         $query = $this->getBaseQuery();
 
         $data = $query->paginate();
@@ -34,8 +38,12 @@ class ProjectController extends Controller
             $obj = new Project();
             tap($params->only([
                 'name',
-                'source_locale'
+                'source_locale',
+                'tenant_id',
             ])->filter()->toArray(), $obj->fill(...));
+
+            $this->authorize('create', $obj);
+
             $obj->save();
 
             return ProjectResource::make($obj);
@@ -48,7 +56,9 @@ class ProjectController extends Controller
     public function show($id)
     {
         $query = $this->getBaseQuery();
-        $obj = $query->with('translationMemories')->find($id);
+        $obj = $query->with('translationMemories')->findOrFail($id);
+
+        $this->authorize('view', $obj);
 
         return ProjectResource::make($obj);
     }
@@ -63,7 +73,9 @@ class ProjectController extends Controller
 
         return DB::transaction(function () use ($id, $params) {
            $query = $this->getBaseQuery();
-           $obj = $query->find($id);
+           $obj = $query->findOrFail($id);
+
+           $this->authorize('update', $obj);
 
            $obj->fill($params->only(['name', 'source_locale'])->filter()->toArray());
            $obj->save();
@@ -73,6 +85,15 @@ class ProjectController extends Controller
                    ->keyBy('id')
                    ->map(fn($tm) => ['read' => $tm['read'], 'write' => $tm['write']])
                    ->toArray();
+
+               $translationMemories = TranslationMemory::getModel()->whereIn('id', array_keys($syncData))->get();
+               foreach ($translationMemories as $tm) {
+                   $this->authorize('view', $tm);
+                   if ($syncData[$tm->id]['write']) {
+                       $this->authorize('update', $tm);
+                   }
+               }
+
                $obj->translationMemories()->sync($syncData);
            }
 
@@ -88,9 +109,11 @@ class ProjectController extends Controller
     {
         return DB::transaction(function () use ($id) {
             $query = $this->getBaseQuery();
-            $obj = $query->find($id);
+            $obj = $query->findOrFail($id);
 
-            $obj->destroy();
+            $this->authorize('delete', $obj);
+
+            $obj->delete();
 
             return ProjectResource::make($obj);
         });

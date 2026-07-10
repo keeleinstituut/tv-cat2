@@ -43,6 +43,8 @@ class SuggestionController extends Controller
 
         $job = Job::getModel()->with('project.translationMemories')->findOrFail($jobId);
 
+        $this->authorize('view', $job);
+
         $projectTmIds = $job->project->translationMemories
             ->filter(fn($tm) => $tm->pivot->read)
             ->pluck('id')
