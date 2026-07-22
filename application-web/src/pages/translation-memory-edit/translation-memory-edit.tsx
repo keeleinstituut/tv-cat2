@@ -11,6 +11,7 @@ import { omitBy } from "lodash"
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { useParams } from "react-router"
+import { useTranslation } from "react-i18next"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 import TranslationMemorySegmentsList from "./translation-memory-segments-list"
@@ -61,6 +62,7 @@ const reducer = (state: State, action: Action): State => {
 }
 
 const TranslationMemoryEditPage = () => {
+  const { t, i18n } = useTranslation()
   const { translation_memory_id } = useParams()
   const [state, dispatch] = useReducer(reducer, reducerInitialState)
 
@@ -168,6 +170,10 @@ const TranslationMemoryEditPage = () => {
 
   const lastPage = (segmentsQuery.data?.pages || []).at(-1)
 
+  const formatDateTime = useCallback((iso: string) =>
+    new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso)),
+    [i18n.language])
+
   return (
     <div className="h-screen flex flex-col">
       <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear">
@@ -182,7 +188,7 @@ const TranslationMemoryEditPage = () => {
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Edit</BreadcrumbPage>
+                <BreadcrumbPage>{t('translationMemoryEdit.breadcrumbEdit')}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -214,10 +220,10 @@ const TranslationMemoryEditPage = () => {
 
           <div className="flex flex-col border-b shrink-0">
             <div className="flex w-full items-start gap-1 p-4 lg:gap-2 lg:px-6">
-              <Input placeholder="Filter source" {...filterForm.register('source')} />
+              <Input placeholder={t('translationMemoryEdit.filterSourcePlaceholder')} {...filterForm.register('source')} />
               <div className="w-full">
                 <InputGroup>
-                  <InputGroupInput placeholder="Filter target" {...filterForm.register('target')} />
+                  <InputGroupInput placeholder={t('translationMemoryEdit.filterTargetPlaceholder')} {...filterForm.register('target')} />
                   <InputGroupAddon align="inline-end">
                     <Button variant={showReplace ? 'secondary' : 'ghost'} size="icon" onClick={() => setShowReplace(v => !v)}>
                       <Replace />
@@ -227,15 +233,15 @@ const TranslationMemoryEditPage = () => {
                 {showReplace && (
                   <div className="flex w-full items-center gap-1 pt-4">
                     <Input
-                      placeholder="Replace with"
+                      placeholder={t('translationMemoryEdit.replaceWithPlaceholder')}
                       value={replaceWith}
                       onChange={(e) => setReplaceWith(e.target.value)}
                     />
                     <Button variant="outline" size="sm" onClick={handleReplace} disabled={!filterFormValues.target}>
-                      Replace
+                      {t('translationMemoryEdit.replace')}
                     </Button>
                     <Button variant="outline" size="sm" onClick={handleReplaceAll} disabled={!filterFormValues.target || replaceMutation.isPending}>
-                      Replace all
+                      {t('translationMemoryEdit.replaceAll')}
                     </Button>
                     <Button variant="ghost" size="icon" onClick={handlePrevMatch}><ChevronLeft /></Button>
                     <Button variant="ghost" size="icon" onClick={handleNextMatch}><ChevronRight /></Button>
@@ -247,7 +253,7 @@ const TranslationMemoryEditPage = () => {
                 setShowReplace(false)
                 setReplaceWith('')
               }}>
-                Clear filter
+                {t('translationMemoryEdit.clearFilter')}
               </Button>
             </div>
 
@@ -263,8 +269,7 @@ const TranslationMemoryEditPage = () => {
 
           <div className="flex border-t shrink-0">
             <div className="flex px-2 py-4 text-sm gap-2 text-ellipsis whitespace-nowrap overflow-hidden">
-              <span>{lastPage?.meta?.total ?? 0}</span>
-              <span>segments</span>
+              <span>{t('translationMemoryEdit.segmentsCount', { count: lastPage?.meta?.total ?? 0 })}</span>
             </div>
           </div>
         </div>
@@ -272,31 +277,31 @@ const TranslationMemoryEditPage = () => {
         <Tabs defaultValue="info" className="flex-2 border-l flex flex-row gap-0">
           <TabsContent value="info">
             <div className="h-full flex flex-col">
-              <span className="font-bold p-2 border-b">Segment info</span>
+              <span className="font-bold p-2 border-b">{t('translationMemoryEdit.segmentInfo')}</span>
 
               {!state.currentSegment ? (
                 <div className="flex flex-1 items-center justify-center">
-                  <span>Select a segment</span>
+                  <span>{t('translationMemoryEdit.selectSegment')}</span>
                 </div>
               ) : (
                 <div className="p-3 flex flex-col gap-3 text-sm overflow-y-auto">
                   <div>
-                    <div className="text-muted-foreground text-xs mb-1">ID</div>
+                    <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldId')}</div>
                     <div className="font-mono text-xs break-all">{state.currentSegment.id}</div>
                   </div>
                   <div className="flex gap-4">
                     <div>
-                      <div className="text-muted-foreground text-xs mb-1">Source chars</div>
+                      <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldSourceChars')}</div>
                       <div>{state.currentSegment.source.length}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground text-xs mb-1">Target chars</div>
+                      <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldTargetChars')}</div>
                       <div>{(state.edited[state.currentSegment.id]?.target ?? state.currentSegment.target).length}</div>
                     </div>
                   </div>
                   {state.currentSegment.source_context_before && (
                     <div>
-                      <div className="text-muted-foreground text-xs mb-1">Source context before</div>
+                      <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldSourceContextBefore')}</div>
                       <div className="text-xs text-muted-foreground italic whitespace-break-spaces">
                         <SegmentEditInput readOnly value={state.currentSegment.source_context_before} />
                       </div>
@@ -304,7 +309,7 @@ const TranslationMemoryEditPage = () => {
                   )}
                   {state.currentSegment.source_context_after && (
                     <div>
-                      <div className="text-muted-foreground text-xs mb-1">Source context after</div>
+                      <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldSourceContextAfter')}</div>
                       <div className="text-xs text-muted-foreground italic whitespace-break-spaces">
                         <SegmentEditInput readOnly value={state.currentSegment.source_context_after} />
                       </div>
@@ -312,7 +317,7 @@ const TranslationMemoryEditPage = () => {
                   )}
                   {state.currentSegment.target_context_before && (
                     <div>
-                      <div className="text-muted-foreground text-xs mb-1">Target context before</div>
+                      <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldTargetContextBefore')}</div>
                       <div className="text-xs text-muted-foreground italic whitespace-break-spaces">
                         <SegmentEditInput readOnly value={state.currentSegment.target_context_before} />
                       </div>
@@ -320,19 +325,19 @@ const TranslationMemoryEditPage = () => {
                   )}
                   {state.currentSegment.target_context_after && (
                     <div>
-                      <div className="text-muted-foreground text-xs mb-1">Target context after</div>
+                      <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldTargetContextAfter')}</div>
                       <div className="text-xs text-muted-foreground italic whitespace-break-spaces">
                         <SegmentEditInput readOnly value={state.currentSegment.target_context_after} />
                       </div>
                     </div>
                   )}
                   <div>
-                    <div className="text-muted-foreground text-xs mb-1">Created</div>
-                    <div className="text-xs">{new Date(state.currentSegment.created_at).toLocaleString()}</div>
+                    <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldCreated')}</div>
+                    <div className="text-xs">{formatDateTime(state.currentSegment.created_at)}</div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground text-xs mb-1">Updated</div>
-                    <div className="text-xs">{new Date(state.currentSegment.updated_at).toLocaleString()}</div>
+                    <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldUpdated')}</div>
+                    <div className="text-xs">{formatDateTime(state.currentSegment.updated_at)}</div>
                   </div>
                 </div>
               )}

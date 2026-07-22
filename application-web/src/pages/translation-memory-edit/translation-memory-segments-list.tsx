@@ -5,6 +5,7 @@ import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query
 import type { VirtualItem, Virtualizer } from "@tanstack/react-virtual"
 import { last } from "lodash"
 import { useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import SegmentEditInput from "../job-translate/job-segment-edit-input"
 
 type TranslationMemorySegmentsListProps = {
@@ -17,6 +18,7 @@ type TranslationMemorySegmentsListProps = {
 
 const TranslationMemorySegmentsList = (props: TranslationMemorySegmentsListProps) => {
   const { segmentsQuery, editedSegments, onSegmentClick, onSegmentChange, activeSegmentId } = props
+  const { t } = useTranslation()
 
   const allRows = segmentsQuery.data ? segmentsQuery.data.pages.flatMap((page) => page.data) : []
   const activeSegmentIndex = activeSegmentId ? allRows.findIndex(s => s.id === activeSegmentId) : null
@@ -50,8 +52,8 @@ const TranslationMemorySegmentsList = (props: TranslationMemorySegmentsListProps
         <div className={`flex border-b ${!isLoaderRow && segment.id === activeSegmentId ? 'bg-muted/50' : ''}`}>
           {isLoaderRow
             ? segmentsQuery.hasNextPage
-              ? 'Loading more...'
-              : 'Nothing more to load'
+              ? t('translationMemoryEdit.loadingMore')
+              : t('translationMemoryEdit.nothingMoreToLoad')
             : (
               <>
                 <span className="w-[60px] font-medium p-2">{virtualRow.index + 1}</span>

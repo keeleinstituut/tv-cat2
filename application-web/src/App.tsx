@@ -1,4 +1,7 @@
 import { ThemeProvider } from '@/components/theme-provider'
+import { LanguageSwitcher } from '@/components/language-switcher'
+import i18n from '@/i18n'
+import { I18nextProvider } from 'react-i18next'
 import { BrowserRouter } from 'react-router'
 import Routing from './Routing'
 import {
@@ -12,11 +15,16 @@ function App() {
   return (
     <>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <ThemeProvider defaultTheme='light' storageKey='ui-theme'>
-            <Routing />
-          </ThemeProvider>
-        </BrowserRouter>
+        <I18nextProvider i18n={i18n}>
+          <BrowserRouter>
+            <ThemeProvider defaultTheme='light' storageKey='ui-theme'>
+              {/* <div className="fixed top-4 right-4 z-50">
+                <LanguageSwitcher />
+              </div> */}
+              <Routing />
+            </ThemeProvider>
+          </BrowserRouter>
+        </I18nextProvider>
       </QueryClientProvider>
     </>
   )

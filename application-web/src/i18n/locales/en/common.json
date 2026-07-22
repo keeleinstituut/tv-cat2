@@ -1,0 +1,37 @@
+{
+  "notFound": {
+    "title": "404",
+    "backToHome": "Back to home"
+  },
+  "translationMemoryEdit": {
+    "breadcrumbEdit": "TM editor",
+    "filterSourcePlaceholder": "Filter source",
+    "filterTargetPlaceholder": "Filter target",
+    "replaceWithPlaceholder": "Replace with",
+    "replace": "Replace",
+    "replaceAll": "Replace all",
+    "clearFilter": "Clear filter",
+    "segmentsCount_one": "{{count}} segment",
+    "segmentsCount_other": "{{count}} segments",
+    "segmentInfo": "Segment info",
+    "selectSegment": "Select a segment",
+    "fieldId": "ID",
+    "fieldSourceChars": "Source chars",
+    "fieldTargetChars": "Target chars",
+    "fieldSourceContextBefore": "Source context before",
+    "fieldSourceContextAfter": "Source context after",
+    "fieldTargetContextBefore": "Target context before",
+    "fieldTargetContextAfter": "Target context after",
+    "fieldCreated": "Created",
+    "fieldUpdated": "Updated",
+    "loadingMore": "Loading more...",
+    "nothingMoreToLoad": "Nothing more to load"
+  },
+  "common": {
+    "close": "Close",
+    "toggleSidebar": "Toggle Sidebar",
+    "mobileSidebarDescription": "Displays the mobile sidebar.",
+    "breadcrumbAriaLabel": "breadcrumb",
+    "languageSwitcherLabel": "Language"
+  }
+}

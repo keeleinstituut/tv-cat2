@@ -1,0 +1,37 @@
+{
+  "notFound": {
+    "title": "404",
+    "backToHome": "Tagasi avalehele"
+  },
+  "translationMemoryEdit": {
+    "breadcrumbEdit": "Tõlkemälu redaktor",
+    "filterSourcePlaceholder": "Filtreeri lähtetekstist",
+    "filterTargetPlaceholder": "Filtreeri sihttekstist",
+    "replaceWithPlaceholder": "Asenda tekstiga",
+    "replace": "Asenda",
+    "replaceAll": "Asenda kõik",
+    "clearFilter": "Tühjenda filter",
+    "segmentsCount_one": "{{count}} segment",
+    "segmentsCount_other": "{{count}} segmenti",
+    "segmentInfo": "Segmendi info",
+    "selectSegment": "Vali segment",
+    "fieldId": "ID",
+    "fieldSourceChars": "Tähemärke lähtetekstis",
+    "fieldTargetChars": "Tähemärke sihttekstis",
+    "fieldSourceContextBefore": "Eelnev lähtekontekst",
+    "fieldSourceContextAfter": "Järgnev lähtekontekst",
+    "fieldTargetContextBefore": "Eelnev sihtkontekst",
+    "fieldTargetContextAfter": "Järgnev sihtkontekst",
+    "fieldCreated": "Loodud",
+    "fieldUpdated": "Uuendatud",
+    "loadingMore": "Laadin veel...",
+    "nothingMoreToLoad": "Kõik on laaditud"
+  },
+  "common": {
+    "close": "Sulge",
+    "toggleSidebar": "Lülita külgriba",
+    "mobileSidebarDescription": "Kuvab mobiilse külgriba.",
+    "breadcrumbAriaLabel": "navigeerimisrada",
+    "languageSwitcherLabel": "Keel"
+  }
+}
