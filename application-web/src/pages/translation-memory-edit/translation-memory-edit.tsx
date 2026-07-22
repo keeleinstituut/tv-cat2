@@ -182,7 +182,7 @@ const TranslationMemoryEditPage = () => {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href={`/translation-memories/${translation_memory_id}`} target="_blank">
+                <BreadcrumbLink target="_blank">
                   {translationMemoryQuery.data?.data.name ?? '...'}
                 </BreadcrumbLink>
               </BreadcrumbItem>
