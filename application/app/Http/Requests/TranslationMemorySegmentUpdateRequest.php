@@ -9,6 +9,7 @@ class TranslationMemorySegmentUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'source' => 'nullable|string',
             'target' => 'nullable|string',
         ];
     }

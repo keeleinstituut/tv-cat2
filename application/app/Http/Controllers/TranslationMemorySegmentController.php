@@ -30,7 +30,8 @@ class TranslationMemorySegmentController extends Controller
             $query = $query->where('target', 'ilike', "%$param%");
         }
 
-        $query = $query->orderBy('source', 'asc');
+        // $query = $query->orderBy('source', 'asc');
+        $query = $query->orderBy('created_at', 'desc')->orderBy('id');
 
         $data = $query->paginate($params->get('per_page', 100));
 
@@ -85,7 +86,7 @@ class TranslationMemorySegmentController extends Controller
 
         $this->authorize('updateAnySegments', $obj->translationMemory);
 
-        $obj->fill(['target' => $params->get('target')]);
+        $obj->fill($params->only(['source', 'target'])->toArray());
         $obj->save();
 
         return TranslationMemorySegmentResource::make($obj);

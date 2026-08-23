@@ -47,6 +47,8 @@ class TranslationMemorySegmentSeeder extends Seeder
                     'translation_memory_id' => $translationMemory->id,
                     'source' => "$prefix $sentence",
                     'target' => "translated - $prefix $sentence",
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ])->toArray()
             );
         });
