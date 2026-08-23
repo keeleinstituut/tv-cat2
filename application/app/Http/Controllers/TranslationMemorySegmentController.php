@@ -90,4 +90,15 @@ class TranslationMemorySegmentController extends Controller
 
         return TranslationMemorySegmentResource::make($obj);
     }
+
+    public function destroy(string $id)
+    {
+        $obj = TranslationMemorySegment::findOrFail($id);
+
+        $this->authorize('updateAnySegments', $obj->translationMemory);
+
+        $obj->delete();
+
+        return response()->noContent();
+    }
 }

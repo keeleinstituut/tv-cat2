@@ -96,6 +96,7 @@ Route::middleware(['auth:web,keycloak-jwt'])->group(function (): void {
             Route::get('/', 'index');
             Route::put('/replace', 'replace');
             Route::put('/{id}', 'update');
+            Route::delete('/{id}', 'destroy');
         });
 
     Route::post('/download', [\App\Http\Controllers\DownloadController::class, 'download']);
