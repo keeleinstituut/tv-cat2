@@ -25,7 +25,10 @@
     "fieldCreated": "Created",
     "fieldUpdated": "Updated",
     "loadingMore": "Loading more...",
-    "nothingMoreToLoad": "Nothing more to load"
+    "nothingMoreToLoad": "Nothing more to load",
+    "noSegmentsMatchFilter": "No segments match your search",
+    "noSegmentsFound": "This translation memory has no segments",
+    "deleteSegment": "Delete segment"
   },
   "common": {
     "close": "Close",

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { getTranslationMemory } from "@/lib/api/translation-memories"
-import { getTranslationMemorySegments, putTranslationMemorySegment, replaceTranslationMemorySegments, type TranslationMemorySegment } from "@/lib/api/translation-memory-segments"
+import { deleteTranslationMemorySegment, getTranslationMemorySegments, putTranslationMemorySegment, replaceTranslationMemorySegments, type TranslationMemorySegment } from "@/lib/api/translation-memory-segments"
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query"
 import { useDebounce } from "@uidotdev/usehooks"
 import { Bold, ChevronLeft, ChevronRight, Info, Italic, Replace, Subscript, Superscript, Underline } from "lucide-react"
@@ -82,6 +82,8 @@ const TranslationMemoryEditPage = () => {
     }, fn)
   }, [translation_memory_id, filterFormValues.source, filterFormValues.target])
 
+  const hasActiveFilter = Boolean(filterFormValues.source || filterFormValues.target)
+
   const translationMemoryQuery = useQuery({
     queryKey: ['translation-memory', translation_memory_id],
     queryFn: getTranslationMemory,
@@ -121,6 +123,13 @@ const TranslationMemoryEditPage = () => {
     },
   })
 
+  const deleteSegmentMutation = useMutation({
+    mutationFn: deleteTranslationMemorySegment,
+    onSuccess: () => {
+      segmentsQuery.refetch()
+    },
+  })
+
   const allRows = segmentsQuery.data?.pages.flatMap(p => p.data) ?? []
   const currentMatchIndex = allRows.findIndex(s => s.id === state.currentSegment?.id)
 
@@ -141,7 +150,7 @@ const TranslationMemoryEditPage = () => {
     const segment = state.currentSegment
     const currentTarget = state.edited[segment.id]?.target ?? segment.target
     const newTarget = currentTarget.replaceAll(filterFormValues.target, replaceWith)
-    handleSegmentChange(segment, newTarget)
+    handleSegmentChange(segment, 'target', newTarget)
   }, [state.currentSegment, state.edited, filterFormValues.target, replaceWith])
 
   const handleReplaceAll = useCallback(() => {
@@ -154,19 +163,24 @@ const TranslationMemoryEditPage = () => {
     })
   }, [filterFormValues.target, translation_memory_id, replaceWith, replaceMutation])
 
-  const handleSegmentChange = useCallback((segment: TranslationMemorySegment, value: string) => {
-    dispatch({ type: 'EDIT_SEGMENT', data: { id: segment.id, target: value } })
+  const handleSegmentChange = useCallback((segment: TranslationMemorySegment, field: 'source' | 'target', value: string) => {
+    dispatch({ type: 'EDIT_SEGMENT', data: { id: segment.id, [field]: value } })
 
-    const existing = debounceTimersRef.current.get(segment.id)
+    const timerKey = `${segment.id}:${field}`
+    const existing = debounceTimersRef.current.get(timerKey)
     if (existing) clearTimeout(existing)
 
     const timer = setTimeout(() => {
-      updateSegmentMutation.mutate({ id: segment.id, body: { target: value } })
-      debounceTimersRef.current.delete(segment.id)
+      updateSegmentMutation.mutate({ id: segment.id, body: { [field]: value } })
+      debounceTimersRef.current.delete(timerKey)
     }, 800)
 
-    debounceTimersRef.current.set(segment.id, timer)
+    debounceTimersRef.current.set(timerKey, timer)
   }, [updateSegmentMutation])
+
+  const handleSegmentDelete = useCallback((segment: TranslationMemorySegment) => {
+    deleteSegmentMutation.mutate(segment.id)
+  }, [deleteSegmentMutation])
 
   const lastPage = (segmentsQuery.data?.pages || []).at(-1)
 
@@ -264,7 +278,9 @@ const TranslationMemoryEditPage = () => {
             segmentsQuery={segmentsQuery}
             onSegmentClick={(segment) => dispatch({ type: 'SET_CURRENT_SEGMENT', data: segment })}
             onSegmentChange={handleSegmentChange}
+            onSegmentDelete={handleSegmentDelete}
             activeSegmentId={state.currentSegment?.id}
+            hasActiveFilter={hasActiveFilter}
           />
 
           <div className="flex border-t shrink-0">
@@ -292,7 +308,7 @@ const TranslationMemoryEditPage = () => {
                   <div className="flex gap-4">
                     <div>
                       <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldSourceChars')}</div>
-                      <div>{state.currentSegment.source.length}</div>
+                      <div>{(state.edited[state.currentSegment.id]?.source ?? state.currentSegment.source).length}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground text-xs mb-1">{t('translationMemoryEdit.fieldTargetChars')}</div>

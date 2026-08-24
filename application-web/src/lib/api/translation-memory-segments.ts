@@ -17,7 +17,7 @@ export type TranslationMemorySegment = {
 
 export type TranslationMemorySegmentPutPayload = {
   id: string
-  body: { target: string }
+  body: { source?: string; target?: string }
 }
 
 export const getTranslationMemorySegments = async ({ queryKey, pageParam }: { queryKey: any[], pageParam?: number }) => {
@@ -32,6 +32,10 @@ export const getTranslationMemorySegments = async ({ queryKey, pageParam }: { qu
 
 export const putTranslationMemorySegment = async (payload: TranslationMemorySegmentPutPayload) => {
   return (await apiClient.put<DataResponse<TranslationMemorySegment>>(`/api/translation-memory-segments/${payload.id}`, payload.body)).data
+}
+
+export const deleteTranslationMemorySegment = async (id: string) => {
+  return (await apiClient.delete(`/api/translation-memory-segments/${id}`)).data
 }
 
 export type TranslationMemorySegmentReplacePayload = {

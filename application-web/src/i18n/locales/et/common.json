@@ -25,7 +25,10 @@
     "fieldCreated": "Loodud",
     "fieldUpdated": "Uuendatud",
     "loadingMore": "Laadin veel...",
-    "nothingMoreToLoad": "Kõik on laaditud"
+    "nothingMoreToLoad": "Kõik on laaditud",
+    "noSegmentsMatchFilter": "Otsingule vastavaid segmente ei leitud",
+    "noSegmentsFound": "Selles tõlkemälus pole segmente",
+    "deleteSegment": "Kustuta segment"
   },
   "common": {
     "close": "Sulge",
