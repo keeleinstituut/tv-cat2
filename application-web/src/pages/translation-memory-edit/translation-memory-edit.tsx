@@ -1,5 +1,6 @@
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import { useConfirm } from "@/components/confirm-provider"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { getTranslationMemory } from "@/lib/api/translation-memories"
@@ -68,6 +69,7 @@ const TranslationMemoryEditPage = () => {
 
   const [showReplace, setShowReplace] = useState(false)
   const [replaceWith, setReplaceWith] = useState('')
+  const confirm = useConfirm()
 
   const filterForm = useForm({ defaultValues: filterFormDefaultValues })
   const filterFormValues = useDebounce(useWatch({ control: filterForm.control }), 300)
@@ -178,9 +180,16 @@ const TranslationMemoryEditPage = () => {
     debounceTimersRef.current.set(timerKey, timer)
   }, [updateSegmentMutation])
 
-  const handleSegmentDelete = useCallback((segment: TranslationMemorySegment) => {
-    deleteSegmentMutation.mutate(segment.id)
-  }, [deleteSegmentMutation])
+  const handleSegmentDelete = useCallback(async (segment: TranslationMemorySegment) => {
+    const ok = await confirm({
+      title: t('translationMemoryEdit.confirmDeleteTitle'),
+      description: t('translationMemoryEdit.confirmDeleteDescription'),
+      confirmText: t('translationMemoryEdit.confirmDelete'),
+      variant: 'destructive',
+      rememberKey: 'tm-segment-delete',
+    })
+    if (ok) deleteSegmentMutation.mutate(segment.id)
+  }, [confirm, deleteSegmentMutation, t])
 
   const lastPage = (segmentsQuery.data?.pages || []).at(-1)
 

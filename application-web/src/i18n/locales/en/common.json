@@ -28,13 +28,19 @@
     "nothingMoreToLoad": "Nothing more to load",
     "noSegmentsMatchFilter": "No segments match your search",
     "noSegmentsFound": "This translation memory has no segments",
-    "deleteSegment": "Delete segment"
+    "deleteSegment": "Delete segment",
+    "confirmDeleteTitle": "Delete segment?",
+    "confirmDeleteDescription": "This action cannot be undone.",
+    "confirmDelete": "Delete"
   },
   "common": {
     "close": "Close",
     "toggleSidebar": "Toggle Sidebar",
     "mobileSidebarDescription": "Displays the mobile sidebar.",
     "breadcrumbAriaLabel": "breadcrumb",
-    "languageSwitcherLabel": "Language"
+    "languageSwitcherLabel": "Language",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "dontAskAgainSession": "Don't ask again this session"
   }
 }

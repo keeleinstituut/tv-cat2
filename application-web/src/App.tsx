@@ -1,3 +1,4 @@
+import { ConfirmProvider } from '@/components/confirm-provider'
 import { ThemeProvider } from '@/components/theme-provider'
 import i18n from '@/i18n'
 import { I18nextProvider } from 'react-i18next'
@@ -20,7 +21,9 @@ function App() {
               {/* <div className="fixed top-4 right-4 z-50">
                 <LanguageSwitcher />
               </div> */}
-              <Routing />
+              <ConfirmProvider>
+                <Routing />
+              </ConfirmProvider>
             </ThemeProvider>
           </BrowserRouter>
         </I18nextProvider>

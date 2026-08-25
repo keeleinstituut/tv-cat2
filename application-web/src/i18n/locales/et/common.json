@@ -28,13 +28,19 @@
     "nothingMoreToLoad": "Kõik on laaditud",
     "noSegmentsMatchFilter": "Otsingule vastavaid segmente ei leitud",
     "noSegmentsFound": "Selles tõlkemälus pole segmente",
-    "deleteSegment": "Kustuta segment"
+    "deleteSegment": "Kustuta segment",
+    "confirmDeleteTitle": "Kustuta segment?",
+    "confirmDeleteDescription": "Seda toimingut ei saa tagasi võtta.",
+    "confirmDelete": "Kustuta"
   },
   "common": {
     "close": "Sulge",
     "toggleSidebar": "Lülita külgriba",
     "mobileSidebarDescription": "Kuvab mobiilse külgriba.",
     "breadcrumbAriaLabel": "navigeerimisrada",
-    "languageSwitcherLabel": "Keel"
+    "languageSwitcherLabel": "Keel",
+    "cancel": "Tühista",
+    "confirm": "Kinnita",
+    "dontAskAgainSession": "Ära rohkem küsi selle sessiooni jooksul"
   }
 }
