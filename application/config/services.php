@@ -41,6 +41,11 @@ return [
 
     'tv_authorization' => [
         'base_url' => env('TV_AUTHORIZATION_BASE_URL'),
-    ]
+    ],
+
+    'tv_translation_order' => [
+        'base_url' => env('TV_TRANSLATION_ORDER_BASE_URL'),
+        'authorization_cache_ttl' => env('TV_TRANSLATION_ORDER_AUTHORIZATION_CACHE_TTL', 45),
+    ],
 
 ];

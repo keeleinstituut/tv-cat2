@@ -15,6 +15,7 @@ class AnalysisIndexRequest extends FormRequest
     {
         return [
             'project_id' => 'uuid',
+            'per_page' => 'nullable|integer',
         ];
     }
 }

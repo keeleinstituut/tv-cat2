@@ -19,7 +19,7 @@ class UserPrivileges
         return $this->data['institutionPrivileges'];
     }
 
-    public function getInstitutionsPerPrivilege() {
+    public function getTenantsPerPrivilege() {
         return collect($this->getPrivilegesPerInstitution())
             ->reduce(function ($acc, $privileges, $key) {
                 foreach ($privileges as $index => $privilege) {
@@ -29,11 +29,11 @@ class UserPrivileges
             }, []);
     }
 
-    public function hasPrivilege(string $institutionId, string $privilege) {
-        return collect($this->getPrivilegesPerInstitution()[$institutionId])->contains($privilege);
+    public function hasPrivilege(?string $tenantId, string $privilege) {
+        return collect(data_get($this->getPrivilegesPerInstitution(), $tenantId))->contains($privilege);
     }
 
-    public function getInstitutionsForPrivilege(string $privilege) {
-        return $this->getInstitutionsPerPrivilege()[$privilege];
+    public function getTenantsForPrivilege(string $privilege) {
+        return data_get($this->getTenantsPerPrivilege(), $privilege);
     }
 }

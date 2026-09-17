@@ -16,6 +16,7 @@ class ProjectStoreRequest extends FormRequest
         return [
             'name' => ['required', 'string'],
             'source_locale' => ['required', 'string'],
+            'tenant_id' => ['required', 'string'],
 //            'target_locale' => ['required', 'array', 'min:1'],
 //            'target_locale.*' => ['string'],
 //            'source_files' => ['array', 'min:1'],

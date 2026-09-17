@@ -17,6 +17,8 @@ class TranslationMemoryStoreRequest extends FormRequest
             'name' => ['required', 'string'],
             'source_locale' => ['required', 'string'],
             'target_locale' => ['required', 'string'],
+            'tenant_id' => ['required', 'string'],
+            'visibility' => ['nullable', 'string'],
             'meta' => 'array',
         ];
     }

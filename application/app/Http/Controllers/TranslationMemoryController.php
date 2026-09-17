@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TranslationMemorySegment;
+use App\Policies\TranslationMemoryPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -18,22 +19,6 @@ use App\Services\InternalTranslationMemoryService;
 
 class TranslationMemoryController extends Controller
 {
-    private const OPERATOR_MAP = [
-        'eq'    => '=',
-        'neq'   => '!=',
-        'gt'    => '>',
-        'gte'   => '>=',
-        'lt'    => '<',
-        'lte'   => '<=',
-        'like'  => 'LIKE',
-        'ilike' => 'ILIKE',
-    ];
-
-    private const ALLOWED_FILTER_COLUMNS = [
-        'name',
-        'source_locale',
-        'target_locale',
-    ];
     /**
      * Display a listing of the resource.
      */
@@ -45,37 +30,61 @@ class TranslationMemoryController extends Controller
 
         $query = $this->getBaseQuery();
 
-        // if ($param = $params->get('project_id')) {
-        //     $query = $query->whereHas('job', function ($q) use ($param) {
-        //         $q->where('project_id', $param);
-        //     });
-        // }
-
-        if ($sourceLocale = $params->get('source_locale')) {
-            $query = $query
-                ->where('source_locale', $sourceLocale);
+        if ($name = $params->get('name')) {
+            $query = $query->where('name', 'ilike', '%' . $name . '%');
         }
 
-        if ($targetLocale = $params->get('target_locale')) {
-            $query = $query
-                ->where('target_locale', $targetLocale);
+        if ($tenantId = $params->get('tenant_id')) {
+            $query = $query->where('tenant_id', $tenantId);
         }
 
-        if ($meta = $params->get('meta')) {
-            $query = collect($meta)
-                ->reduce(function ($queryBuilder, $v, $k) {
-                    return $queryBuilder
-                        ->where('meta->' . $k, $v);
-                }, $query);
+        $sourceLocales = array_values(array_filter($params->get('source_locale', []), fn ($v) => $v !== null && $v !== ''));
+        $targetLocales = array_values(array_filter($params->get('target_locale', []), fn ($v) => $v !== null && $v !== ''));
+
+        if (!empty($sourceLocales) && !empty($targetLocales) && count($sourceLocales) === count($targetLocales)) {
+            $query = $query->where(function ($q) use ($sourceLocales, $targetLocales) {
+                foreach ($sourceLocales as $i => $source) {
+                    $target = $targetLocales[$i];
+                    $method = $i === 0 ? 'where' : 'orWhere';
+                    $q->$method(fn ($sub) => $sub->where('source_locale', $source)->where('target_locale', $target));
+                }
+            });
+        } else {
+            if (!empty($sourceLocales)) {
+                $query = $query->whereIn('source_locale', $sourceLocales);
+            }
+            if (!empty($targetLocales)) {
+                $query = $query->whereIn('target_locale', $targetLocales);
+            }
         }
 
-        if ($filter = $params->get('filter')) {
-            $query = $this->applyFilter($query, $filter);
+        $visibilities = array_values(array_filter($params->get('visibility', []), fn ($v) => $v !== null && $v !== ''));
+        if (!empty($visibilities)) {
+            $query = $query->whereIn('visibility', $visibilities);
         }
 
-        $data = $query->get();
+        $domains = array_values(array_filter($params->get('tv_domain', []), fn ($v) => $v !== null && $v !== ''));
+        if (!empty($domains)) {
+            $query = $query->whereIn('meta->tv_domain', $domains);
+        }
+
+        $tags = array_values(array_filter($params->get('tv_tags', []), fn ($v) => $v !== null && $v !== ''));
+        if (!empty($tags)) {
+            $query = $query->where(function ($q) use ($tags) {
+                foreach ($tags as $i => $tag) {
+                    $method = $i === 0 ? 'whereJsonContains' : 'orWhereJsonContains';
+                    $q->$method('meta->tv_tags', $tag);
+                }
+            });
+        }
+
         $additionalData = [];
-        // $data = $query->paginate();
+
+        if ($perPage = $params->get('per_page')) {
+            $data = $query->paginate($perPage, ['*'], 'page', $params->get('page'));
+        } else {
+            $data = $query->get();
+        }
 
         if ($params->get('with_segment_count', false)) {
             $additionalData['segment_counts'] = TranslationMemorySegment::getModel()
@@ -107,6 +116,8 @@ class TranslationMemoryController extends Controller
                 'name',
                 'source_locale',
                 'target_locale',
+                'tenant_id',
+                'visibility',
                 'meta',
             ])->filter()->toArray(), $obj->fill(...));
 
@@ -155,6 +166,8 @@ class TranslationMemoryController extends Controller
                 'name',
                 'source_locale',
                 'target_locale',
+                'tenant_id',
+                'visibility',
             ])->filter()->toArray(), $obj->fill(...));
 
             if ($paramsMeta = $params->get('meta')) {
@@ -270,53 +283,6 @@ class TranslationMemoryController extends Controller
     }
 
     private function getBaseQuery() {
-        return TranslationMemory::getModel();
-    }
-
-    private function applyFilter($query, array $filter)
-    {
-        foreach ($filter as $key => $value) {
-            if ($key === 'or') {
-                $query = $query->where(function ($q) use ($value) {
-                    foreach ($value as $i => $group) {
-                        $method = $i === 0 ? 'where' : 'orWhere';
-                        $q = $q->$method(function ($sub) use ($group) {
-                            return $this->applyFilter($sub, $group);
-                        });
-                    }
-                });
-            } elseif ($key === 'and') {
-                // $query = $query->where(function ($q) use ($value) {
-                //     return $this->applyFilter($q, $value);
-                // });
-                $query = $query->where(function ($q) use ($value) {
-                    foreach ($value as $group) {
-                        $q = $q->where(function ($sub) use ($group) {
-                            $this->applyFilter($sub, $group);
-                        });
-                    }
-                });
-            } else {
-                if (str_starts_with($key, 'meta.')) {
-                    $metaKey = substr($key, 5);
-                    if (!preg_match('/^[a-zA-Z0-9_]+$/', $metaKey)) {
-                        abort(422, "Invalid meta filter key: {$key}");
-                    }
-                    $column = "meta->{$metaKey}";
-                } else {
-                    if (!\in_array($key, self::ALLOWED_FILTER_COLUMNS, true)) {
-                        abort(422, "Filter on column '{$key}' is not allowed");
-                    }
-                    $column = $key;
-                }
-                if (\is_array($value) && \array_key_exists('operator', $value) && \array_key_exists('value', $value)) {
-                    $op = self::OPERATOR_MAP[$value['operator']] ?? abort(422, "Unknown filter operator: {$value['operator']}");
-                    $query = $query->where($column, $op, $value['value']);
-                } else {
-                    $query = $query->where($column, $value);
-                }
-            }
-        }
-        return $query;
+        return TranslationMemory::getModel()->withGlobalScope('policy', TranslationMemoryPolicy::scope());
     }
 }

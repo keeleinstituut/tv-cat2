@@ -15,6 +15,8 @@ class TranslationMemory extends Model
         'name',
         'source_locale',
         'target_locale',
+        'tenant_id',
+        'visibility',
         'meta',
     ];
 

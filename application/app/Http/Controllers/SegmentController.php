@@ -6,6 +6,7 @@ use App\Http\Requests\SegmentBulkUpdateRequest;
 use App\Http\Requests\SegmentIndexRequest;
 use App\Http\Requests\SegmentUpdateRequest;
 use App\Http\Resources\SegmentResource;
+use App\Models\Job;
 use App\Models\Segment;
 use App\Models\TranslationMemorySegment;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,11 +18,11 @@ class SegmentController extends Controller
     public function index(SegmentIndexRequest $request)
     {
         $params = collect($request->validated());
-        $query = $this->getBaseQuery();
 
-        if ($param = $params->get('job_id')) {
-            $query = $query->where('job_id', $param);
-        }
+        $job = Job::findOrFail($params->get('job_id'));
+        $this->authorize('view', $job);
+
+        $query = $this->getBaseQuery()->where('job_id', $job->id);
 
         // Normalise so applyFilters reads 'target_filter' for the target text search
         if ($params->has('target')) {
@@ -58,7 +59,9 @@ class SegmentController extends Controller
 
         return DB::transaction(function () use ($id, $params) {
             $query = $this->getBaseQuery();
-            $obj = $query->find($id);
+            $obj = $query->findOrFail($id);
+
+            $this->authorize('update', $obj);
 
             if ($params->has('target')) {
                 if ($obj->repetition_group && $params->get('save_repetitions', True)) {
@@ -124,6 +127,10 @@ class SegmentController extends Controller
     public function bulkUpdate(SegmentBulkUpdateRequest $request)
     {
         $params = collect($request->validated());
+
+        // 'view' — bulk-editing/confirming segments is translating, part of view-level CAT access.
+        $job = Job::findOrFail($params->get('job_id'));
+        $this->authorize('view', $job);
 
         return DB::transaction(function () use ($params) {
             $query = $this->getBaseQuery()->where('job_id', $params->get('job_id'));

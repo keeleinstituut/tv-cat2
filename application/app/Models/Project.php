@@ -14,6 +14,7 @@ class Project extends Model
     protected $fillable = [
         'name',
         'source_locale',
+        'tenant_id',
     ];
 
     public function jobs() {

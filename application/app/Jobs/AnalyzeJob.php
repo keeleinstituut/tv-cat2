@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\Analysis;
 use App\Models\Job;
+use App\Models\JobAnalysis;
 use App\Services\Dto\GetSuggestionsOptions;
 use App\Services\InternalTranslationMemoryService;
 use Illuminate\Bus\Queueable;
@@ -17,12 +17,12 @@ class AnalyzeJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     private Job $jobModel;
-    private Analysis $analysis;
+    private JobAnalysis $jobAnalysis;
 
-    public function __construct(Job $jobModel, Analysis $analysis)
+    public function __construct(Job $jobModel, JobAnalysis $jobAnalysis)
     {
         $this->jobModel = $jobModel;
-        $this->analysis = $analysis;
+        $this->jobAnalysis = $jobAnalysis;
     }
 
     public function handle(): void
@@ -30,8 +30,8 @@ class AnalyzeJob implements ShouldQueue
         $segments = $this->jobModel->segments()->orderBy('position')->get();
 
         if ($segments->isEmpty()) {
-            $this->analysis->results = $this->emptyResults();
-            $this->analysis->save();
+            $this->jobAnalysis->results = $this->emptyResults();
+            $this->jobAnalysis->save();
             return;
         }
 
@@ -91,8 +91,8 @@ class AnalyzeJob implements ShouldQueue
             return $carry;
         }, ['segments' => 0, 'words' => 0, 'chars' => 0]);
 
-        $this->analysis->results = ['bands' => $bands, 'total' => $total];
-        $this->analysis->save();
+        $this->jobAnalysis->results = ['bands' => $bands, 'total' => $total];
+        $this->jobAnalysis->save();
     }
 
     private function classifySegment($segment, array $suggestions): string

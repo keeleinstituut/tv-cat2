@@ -39,10 +39,12 @@ class KeycloakJwtGuard implements Guard
             return null;
         }
 
-        // Only allow service accounts to access over Bearer token authentication
-        if (!Str::startsWith($payload->preferred_username, 'service-account-')) {
-            return null;
-        }
+        // // Only allow service accounts to access over Bearer token authentication
+        // if (!Str::startsWith($payload->preferred_username, 'service-account-')) {
+        //     return null;
+        // }
+
+        $tolkevaravPersonalIdentificationCode = data_get($payload, 'tolkevarav.personalIdentificationCode');
 
         $user = $this->provider->retrieveByCredentials([
             'keycloak_sub' => $payload->sub
@@ -53,6 +55,13 @@ class KeycloakJwtGuard implements Guard
             $user = new $userModel();
             $user->keycloak_sub = $payload->sub;
             $user->name = $payload->name ?? $payload->preferred_username ?? $payload->sub;
+        }
+
+        if ($tolkevaravPersonalIdentificationCode && $user->tolkevarav_personal_identification_code !== $tolkevaravPersonalIdentificationCode) {
+            $user->tolkevarav_personal_identification_code = $tolkevaravPersonalIdentificationCode;
+        }
+
+        if (! $user->exists || $user->isDirty()) {
             $user->save();
         }
 

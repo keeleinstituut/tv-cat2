@@ -11,9 +11,13 @@ class Analysis extends Model
     use HasFactory;
     use HasUuids;
 
-    protected $casts = ['results' => 'array'];
+    protected $casts = ['translation_memory_ids' => 'array'];
 
-    public function job() {
-        return $this->belongsTo(Job::class);
+    public function project() {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function jobAnalyses() {
+        return $this->hasMany(JobAnalysis::class);
     }
 }

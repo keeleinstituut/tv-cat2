@@ -16,8 +16,10 @@ class JobStoreRequest extends FormRequest
         return [
             'project_id' => 'required|uuid|exists:projects,id',
             'target_locale' => 'required|string',
-            'source_files' => 'required|array|size:1',
+            'source_files' => 'required_without:source_file_url|array|size:1',
             'source_files.*' => 'file',
+            'source_file_url' => 'required_without:source_files|url',
+            'source_file_name' => 'required_with:source_file_url|string',
         ];
     }
 }

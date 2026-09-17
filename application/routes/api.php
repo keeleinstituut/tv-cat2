@@ -73,9 +73,9 @@ Route::middleware(['auth:web,keycloak-jwt'])->group(function (): void {
         ->whereUuid('id')->group(function (): void {
             Route::get('/', 'index');
             Route::post('/', 'store');
-    //        Route::get('/{id}', 'show');
+            Route::get('/{id}', 'show');
     //        Route::put('/{id}', 'update');
-    //        Route::delete('/{id}', 'destroy');
+            Route::delete('/{id}', 'destroy');
         });
 
     Route::prefix('/translation-memories')
