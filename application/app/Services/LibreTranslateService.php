@@ -43,7 +43,8 @@ class LibreTranslateService
 
         $chunks = array_chunk($uncached, self::CHUNK_SIZE);
         foreach ($chunks as $chunk) {
-            $response = Http::post('http://host.docker.internal:6003/translate', [
+            $baseUrl = rtrim(config('services.libretranslate.base_url'), '/');
+            $response = Http::post("$baseUrl/translate", [
                 'q'      => $chunk,
                 'source' => $src,
                 'target' => $tgt,

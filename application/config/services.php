@@ -48,4 +48,12 @@ return [
         'authorization_cache_ttl' => env('TV_TRANSLATION_ORDER_AUTHORIZATION_CACHE_TTL', 45),
     ],
 
+    'libretranslate' => [
+        'base_url' => env('LIBRETRANSLATE_BASE_URL'),
+    ],
+
+    'matecat_filters' => [
+        'base_url' => env('MATECAT_FILTERS_BASE_URL'),
+    ],
+
 ];

@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\Http;
 
 class XliffConverterService
 {
-    // private static $base = "http://host.docker.internal:8732";
-    private static $base = "http://matecat-filters:8732";
-
     public static function convertOriginalToXliff($sourceLocale, $targetLocale, Media $sourceFile) {
         $stream = $sourceFile->stream();
         $content = stream_get_contents($stream);
@@ -53,6 +50,6 @@ class XliffConverterService
     }
 
     private static function client() {
-        return Http::baseUrl(static::$base);
+        return Http::baseUrl(config('services.matecat_filters.base_url'));
     }
 }
