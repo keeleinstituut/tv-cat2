@@ -12,6 +12,7 @@
         "laravel/sanctum": "^3.3",
         "laravel/socialite": "^5.28",
         "laravel/tinker": "^2.8",
+        "league/flysystem-aws-s3-v3": "^3.0",
         "matecat/xliff-parser": "^2.0",
         "predis/predis": "^3.3",
         "socialiteproviders/keycloak": "^5.3",
