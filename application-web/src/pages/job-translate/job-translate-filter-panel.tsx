@@ -186,9 +186,9 @@ const JobTranslateFilterPanel = ({ filters, onFiltersChange }: FilterPanelProps)
             <CheckboxItem label={t('jobTranslate.filterScore100')} checked={filters.pretranslated['score_100']} onCheckedChange={() => togglePretranslated('score_100')} />
             <CheckboxItem label={t('jobTranslate.filterScore99')} checked={filters.pretranslated['score_99']} onCheckedChange={() => togglePretranslated('score_99')} />
             <CheckboxItem label={t('jobTranslate.filterFuzzy')} checked={filters.pretranslated['fuzzy']} onCheckedChange={() => togglePretranslated('fuzzy')} />
-            <CheckboxItem label={t('jobTranslate.filterTm')} checked={filters.pretranslated['tm']} onCheckedChange={() => togglePretranslated('tm')} />
-            <CheckboxItem label={t('jobTranslate.filterNt')} checked={filters.pretranslated['nt']} onCheckedChange={() => togglePretranslated('nt')} />
-            <CheckboxItem label={t('jobTranslate.filterMt')} checked={filters.pretranslated['mt']} onCheckedChange={() => togglePretranslated('mt')} />
+            {/* <CheckboxItem label={t('jobTranslate.filterTm')} checked={filters.pretranslated['tm']} onCheckedChange={() => togglePretranslated('tm')} /> */}
+            {/* <CheckboxItem label={t('jobTranslate.filterNt')} checked={filters.pretranslated['nt']} onCheckedChange={() => togglePretranslated('nt')} /> */}
+            {/* <CheckboxItem label={t('jobTranslate.filterMt')} checked={filters.pretranslated['mt']} onCheckedChange={() => togglePretranslated('mt')} /> */}
             <CheckboxItem label={t('jobTranslate.filterNoMatch')} checked={filters.pretranslated['no_match']} onCheckedChange={() => togglePretranslated('no_match')} />
           </div>
         </CollapsibleContent>
