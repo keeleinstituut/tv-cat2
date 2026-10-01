@@ -27,3 +27,21 @@ export type DataPaginationResponse<T> = {
     }[]
   }
 }
+
+export type ProjectTranslationMemory = {
+  id: string
+  name: string
+  source_locale: string
+  target_locale: string
+  read: boolean
+  write: boolean
+}
+
+export type Project = {
+  id: string
+  name: string
+  source_locale: string
+  created_at: string
+  updated_at: string
+  translation_memories?: ProjectTranslationMemory[]
+}
