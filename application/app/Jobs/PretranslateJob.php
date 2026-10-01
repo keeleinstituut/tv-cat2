@@ -100,17 +100,17 @@ class PretranslateJob implements ShouldQueue
             }
         }
 
-        // Single HTTP request for all MT candidates
-        if (!empty($mtCandidates)) {
-            $mtResults = LibreTranslateService::translateBatch($mtCandidates, $sourceLocale, $targetLocale);
-            foreach ($mtCandidates as $source) {
-                $mtSuggestions = $mtResults[$source] ?? [];
-                $best = $this->getBestMatch($mtSuggestions);
-                if ($best) {
-                    $bestMatches[$source] = $best;
-                }
-            }
-        }
+        // // Single HTTP request for all MT candidates
+        // if (!empty($mtCandidates)) {
+        //     $mtResults = LibreTranslateService::translateBatch($mtCandidates, $sourceLocale, $targetLocale);
+        //     foreach ($mtCandidates as $source) {
+        //         $mtSuggestions = $mtResults[$source] ?? [];
+        //         $best = $this->getBestMatch($mtSuggestions);
+        //         if ($best) {
+        //             $bestMatches[$source] = $best;
+        //         }
+        //     }
+        // }
 
         // Build update maps: individual segments vs. repetition groups
         $individualUpdates = [];
