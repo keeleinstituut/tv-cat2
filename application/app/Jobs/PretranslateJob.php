@@ -23,8 +23,11 @@ class PretranslateJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(Job $jobModel)
-    {
+    public function __construct(
+        Job $jobModel,
+        private float $tmMatchThreshold = 100,
+        private bool $useMt = false,
+    ) {
         $this->jobModel = $jobModel;
     }
 
@@ -86,7 +89,7 @@ class PretranslateJob implements ShouldQueue
             $ntResults[$source] = NoTranslateService::getSuggestions($ntOptions);
         }
 
-        // Determine which sources still need MT (no TM/NT match with score >= 98)
+        // Determine which sources still need MT (no TM/NT match with score >= threshold)
         $bestMatches = [];
         $mtCandidates = [];
 
@@ -100,17 +103,17 @@ class PretranslateJob implements ShouldQueue
             }
         }
 
-        // // Single HTTP request for all MT candidates
-        // if (!empty($mtCandidates)) {
-        //     $mtResults = LibreTranslateService::translateBatch($mtCandidates, $sourceLocale, $targetLocale);
-        //     foreach ($mtCandidates as $source) {
-        //         $mtSuggestions = $mtResults[$source] ?? [];
-        //         $best = $this->getBestMatch($mtSuggestions);
-        //         if ($best) {
-        //             $bestMatches[$source] = $best;
-        //         }
-        //     }
-        // }
+        // Single HTTP request for all MT candidates
+        if ($this->useMt && !empty($mtCandidates)) {
+            $mtResults = LibreTranslateService::translateBatch($mtCandidates, $sourceLocale, $targetLocale);
+            foreach ($mtCandidates as $source) {
+                $mtSuggestions = $mtResults[$source] ?? [];
+                $best = $this->getBestMatch($mtSuggestions);
+                if ($best) {
+                    $bestMatches[$source] = $best;
+                }
+            }
+        }
 
         // Build update maps: individual segments vs. repetition groups
         $individualUpdates = [];
@@ -187,8 +190,12 @@ class PretranslateJob implements ShouldQueue
             ->sortByDesc('score')
             ->first();
 
-        if ($bestScoreMatch && $bestScoreMatch['score'] >= 98) {
+        if ($bestScoreMatch && $bestScoreMatch['score'] >= $this->tmMatchThreshold) {
             return $bestScoreMatch;
+        }
+
+        if (!$this->useMt) {
+            return null;
         }
 
         $mtMatch = collect($suggestions)
