@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SegmentBulkUpdateRequest;
 use App\Http\Requests\SegmentIndexRequest;
+use App\Http\Requests\SegmentReplaceRequest;
 use App\Http\Requests\SegmentUpdateRequest;
 use App\Http\Resources\SegmentResource;
 use App\Models\Job;
@@ -244,6 +245,41 @@ class SegmentController extends Controller
                         }
                     }
                 }
+            }
+
+            return response()->json(['meta' => ['count' => $count]]);
+        });
+    }
+
+    public function replace(SegmentReplaceRequest $request)
+    {
+        $params = collect($request->validated());
+
+        $job = Job::findOrFail($params->get('job_id'));
+        $this->authorize('view', $job);
+
+        $target = $params->get('target');
+        $replaceTarget = $params->get('replace_target') ?? '';
+
+        // Normalise so applyFilters reads 'target_filter' for the target text search
+        $params->put('target_filter', $target);
+
+        return DB::transaction(function () use ($params, $target, $replaceTarget) {
+            $query = $this->getBaseQuery()
+                ->where('job_id', $params->get('job_id'))
+                ->where('locked', false);
+
+            $segments = $this->applyFilters($query, $params)->get();
+
+            $count = 0;
+            foreach ($segments as $segment) {
+                $newTarget = str_replace($target, $replaceTarget, $segment->target);
+                if ($newTarget === $segment->target) {
+                    continue;
+                }
+                $segment->target = $newTarget;
+                $segment->save();
+                $count++;
             }
 
             return response()->json(['meta' => ['count' => $count]]);

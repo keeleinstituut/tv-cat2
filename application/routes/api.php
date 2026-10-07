@@ -64,6 +64,7 @@ Route::middleware(['auth:web,keycloak-jwt'])->group(function (): void {
     //        Route::post('/', 'store');
     //        Route::get('/{id}', 'show');
             Route::put('/bulk', 'bulkUpdate');
+            Route::put('/replace', 'replace');
             Route::put('/{id}', 'update');
     //        Route::delete('/{id}', 'destroy');
         });
