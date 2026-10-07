@@ -10,6 +10,7 @@ use App\Http\Resources\SegmentResource;
 use App\Models\Job;
 use App\Models\Segment;
 use App\Models\TranslationMemorySegment;
+use App\Services\SegmentTranslationMemoryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -194,57 +195,7 @@ class SegmentController extends Controller
 
             // Save confirmed segments to writable TMs with position context
             if ($params->get('confirmed')) {
-                $segments = (clone $query)->orderBy('position')->get();
-
-                // Build position-keyed map for efficient prev/next lookup
-                $byPosition = $segments->keyBy('position');
-                $positions  = $byPosition->keys()->sort()->values();
-
-                $writableTms = $segments->first()?->job
-                    ?->project
-                    ?->translationMemories()
-                    ->wherePivot('write', true)
-                    ->get() ?? collect();
-
-                if ($writableTms->isNotEmpty()) {
-                    foreach ($segments as $seg) {
-                        $posIdx  = $positions->search($seg->position);
-                        $prevPos = $posIdx > 0 ? $positions->get($posIdx - 1) : null;
-                        $nextPos = $posIdx !== false ? $positions->get($posIdx + 1) : null;
-
-                        // Fall back to DB for prev/next outside the bulk set
-                        $prev = $prevPos !== null
-                            ? $byPosition->get($prevPos)
-                            : Segment::where('job_id', $seg->job_id)
-                                ->where('position', '<', $seg->position)
-                                ->orderBy('position', 'desc')
-                                ->first();
-
-                        $next = $nextPos !== null
-                            ? $byPosition->get($nextPos)
-                            : Segment::where('job_id', $seg->job_id)
-                                ->where('position', '>', $seg->position)
-                                ->orderBy('position', 'asc')
-                                ->first();
-
-                        foreach ($writableTms as $tm) {
-                            TranslationMemorySegment::updateOrCreate(
-                                [
-                                    'translation_memory_id' => $tm->id,
-                                    'segment_id'            => $seg->id,
-                                ],
-                                [
-                                    'source'                => $seg->source,
-                                    'source_context_before' => $prev?->source,
-                                    'source_context_after'  => $next?->source,
-                                    'target'                => $seg->target,
-                                    'target_context_before' => $prev?->target,
-                                    'target_context_after'  => $next?->target,
-                                ]
-                            );
-                        }
-                    }
-                }
+                SegmentTranslationMemoryService::saveConfirmed((clone $query)->orderBy('position')->get());
             }
 
             return response()->json(['meta' => ['count' => $count]]);

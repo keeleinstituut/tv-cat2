@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Job;
 use App\Services\LibreTranslateService;
 use App\Services\NoTranslateService;
+use App\Services\SegmentTranslationMemoryService;
 use App\Services\InternalTranslationMemoryService;
 use App\Services\Dto\GetSuggestionsOptions;
 
@@ -26,7 +27,7 @@ class PretranslateJob implements ShouldQueue
     /**
      * @param float $tmMatchThreshold   Minimum TM/NT match score to accept a suggestion.
      * @param bool  $useMt              Fall back to machine translation when no TM/NT match reaches the threshold.
-     * @param bool  $lockPerfectMatches Lock segments filled by a 101% (context) TM match.
+     * @param bool  $lockPerfectMatches Lock (and confirm) segments filled by a 101% (context) TM match.
      */
     public function __construct(
         Job $jobModel,
@@ -124,6 +125,8 @@ class PretranslateJob implements ShouldQueue
         // Build update maps: individual segments vs. repetition groups
         $individualUpdates = [];
         $groupUpdates = [];
+        // Segments that end up locked by a 101% match are confirmed too (and saved to writable TMs below)
+        $confirmIds = [];
 
         foreach ($untranslated as $segment) {
             $best = $bestMatches[$segment->source] ?? null;
@@ -139,6 +142,10 @@ class PretranslateJob implements ShouldQueue
                     && data_get($best, 'provider.type') === 'TM'
                     && data_get($best, 'score') >= self::LOCK_SCORE,
             ];
+
+            if ($data['locked']) {
+                $confirmIds[] = $segment->id;
+            }
 
             if ($segment->repetition_group) {
                 $groupUpdates[$segment->repetition_group] = $data;
@@ -163,7 +170,8 @@ class PretranslateJob implements ShouldQueue
                     target = v.target, updated_at = NOW(),
                     pretranslate_suggestion_provider_type = v.provider_type,
                     pretranslate_suggestion_score = v.score::decimal,
-                    locked = (v.locked::int = 1)
+                    locked = (v.locked::int = 1),
+                    confirmed = (segments.confirmed OR v.locked::int = 1)
                  FROM (VALUES $placeholders) AS v(id, target, provider_type, score, locked)
                  WHERE segments.id::text = v.id AND segments.locked = false",
                 $params
@@ -186,10 +194,20 @@ class PretranslateJob implements ShouldQueue
                     segments SET target = v.target, updated_at = NOW(),
                     pretranslate_suggestion_provider_type = v.provider_type,
                     pretranslate_suggestion_score = v.score::decimal,
-                    locked = (v.locked::int = 1)
+                    locked = (v.locked::int = 1),
+                    confirmed = (segments.confirmed OR v.locked::int = 1)
                  FROM (VALUES $placeholders) AS v(group_id, target, provider_type, score, locked)
                  WHERE segments.repetition_group::text = v.group_id AND segments.locked = false",
                 $params
+            );
+        }
+
+        if (!empty($confirmIds)) {
+            // Reload so targets and neighbours reflect the updates above
+            $reloaded = $this->jobModel->segments()->orderBy('position')->get();
+            SegmentTranslationMemoryService::saveConfirmed(
+                $reloaded->whereIn('id', $confirmIds)->values(),
+                $reloaded,
             );
         }
     }

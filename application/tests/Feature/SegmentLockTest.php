@@ -232,4 +232,66 @@ class SegmentLockTest extends TestCase
         $this->assertSame('Korduv', $open->refresh()->target);
         $this->assertSame('Kept', $locked->refresh()->target);
     }
+
+    public function test_pretranslate_confirms_only_locked_101_matches(): void
+    {
+        [, $perfect, , $plain] = $this->seedPerfectAndPlainMatches();
+
+        (new PretranslateJob($this->job))->handle();
+
+        $this->assertTrue($perfect->refresh()->confirmed);
+        $this->assertFalse($plain->refresh()->confirmed);
+    }
+
+    public function test_pretranslate_does_not_confirm_when_locking_disabled(): void
+    {
+        [, $perfect] = $this->seedPerfectAndPlainMatches();
+
+        (new PretranslateJob($this->job, lockPerfectMatches: false))->handle();
+
+        $this->assertFalse($perfect->refresh()->confirmed);
+    }
+
+    public function test_pretranslate_confirms_unlocked_members_of_a_101_repetition_group(): void
+    {
+        $this->makeTm([
+            ['source' => 'Repeated', 'target' => 'Korduv',
+                'source_context_before' => 'Intro line', 'source_context_after' => 'Outro line'],
+        ]);
+        $group = (string) Str::uuid();
+        $this->makeSegment(1, 'Intro line');
+        $first = $this->makeSegment(2, 'Repeated', ['repetition_group' => $group]);
+        $this->makeSegment(3, 'Outro line');
+        $second = $this->makeSegment(4, 'Repeated', ['repetition_group' => $group]);
+
+        (new PretranslateJob($this->job))->handle();
+
+        $this->assertTrue($first->refresh()->confirmed);
+        $this->assertTrue($second->refresh()->confirmed);
+    }
+
+    public function test_pretranslate_saves_confirmed_segments_to_writable_tms_only(): void
+    {
+        [, $perfect, , $plain] = $this->seedPerfectAndPlainMatches();
+
+        $writable = TranslationMemory::create([
+            'name' => 'writable-tm', 'source_locale' => 'en', 'target_locale' => 'et',
+        ]);
+        $this->project->translationMemories()->attach($writable->id, ['read' => false, 'write' => true]);
+
+        (new PretranslateJob($this->job))->handle();
+
+        $saved = TranslationMemorySegment::where('translation_memory_id', $writable->id)
+            ->where('segment_id', $perfect->id)
+            ->first();
+        $this->assertNotNull($saved);
+        $this->assertSame('Hello world', $saved->source);
+        $this->assertSame('Tere maailm', $saved->target);
+        $this->assertSame('Intro line', $saved->source_context_before);
+        $this->assertSame('Outro line', $saved->source_context_after);
+
+        // Unconfirmed (100%) segment is not saved; read-only TM gets no segment-linked rows
+        $this->assertSame(0, TranslationMemorySegment::where('segment_id', $plain->id)->count());
+        $this->assertSame(1, TranslationMemorySegment::whereNotNull('segment_id')->count());
+    }
 }
