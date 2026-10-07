@@ -63,10 +63,16 @@ class SegmentController extends Controller
 
             $this->authorize('update', $obj);
 
+            // A locked segment only accepts changes to the lock itself
+            if ($obj->locked && ($params->has('target') || $params->has('confirmed'))) {
+                abort(423, 'Segment is locked.');
+            }
+
             if ($params->has('target')) {
                 if ($obj->repetition_group && $params->get('save_repetitions', True)) {
                     $this->getBaseQuery()
                         ->where('repetition_group', $obj->repetition_group)
+                        ->where('locked', false)
                         ->update([
                             'target' => $params->get('target'),
                         ]);
@@ -81,6 +87,11 @@ class SegmentController extends Controller
 
             if ($params->has('confirmed')) {
                 $obj->confirmed = $params->get('confirmed');
+                $obj->save();
+            }
+
+            if ($params->has('locked')) {
+                $obj->locked = $params->get('locked');
                 $obj->save();
             }
 
@@ -133,7 +144,9 @@ class SegmentController extends Controller
         $this->authorize('view', $job);
 
         return DB::transaction(function () use ($params) {
-            $query = $this->getBaseQuery()->where('job_id', $params->get('job_id'));
+            $query = $this->getBaseQuery()
+                ->where('job_id', $params->get('job_id'))
+                ->where('locked', false);
 
             $segmentIds = $params->get('segment_ids', []);
             if (!empty($segmentIds)) {
@@ -165,6 +178,7 @@ class SegmentController extends Controller
                 if ($repetitionGroups->isNotEmpty()) {
                     $query = $this->getBaseQuery()
                         ->where('job_id', $params->get('job_id'))
+                        ->where('locked', false)
                         ->where(function ($q) use ($segmentIds, $repetitionGroups) {
                             if (!empty($segmentIds)) {
                                 $q->whereIn('id', $segmentIds);
@@ -282,6 +296,12 @@ class SegmentController extends Controller
                     $q->orWhere($fn);
                 }
             });
+        }
+
+        $hasLocked    = $params->get('filter_locked');
+        $hasNotLocked = $params->get('filter_not_locked');
+        if ($hasLocked xor $hasNotLocked) {
+            $query = $query->where('locked', (bool) $hasLocked);
         }
 
         return $query;

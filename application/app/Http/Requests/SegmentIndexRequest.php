@@ -29,6 +29,8 @@ class SegmentIndexRequest extends FormRequest
             'filter_nt' => 'boolean',
             'filter_mt' => 'boolean',
             'filter_no_match' => 'boolean',
+            'filter_locked' => 'boolean',
+            'filter_not_locked' => 'boolean',
             'sort' => 'string|in:source_asc,source_desc,shortest,longest,match_asc,match_desc',
         ];
     }

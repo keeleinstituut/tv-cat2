@@ -18,15 +18,21 @@ class PretranslateJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /** Score given to a 100% text match whose surrounding context also matches. */
+    private const LOCK_SCORE = 101;
+
     private Job $jobModel;
 
     /**
-     * Create a new job instance.
+     * @param float $tmMatchThreshold   Minimum TM/NT match score to accept a suggestion.
+     * @param bool  $useMt              Fall back to machine translation when no TM/NT match reaches the threshold.
+     * @param bool  $lockPerfectMatches Lock segments filled by a 101% (context) TM match.
      */
     public function __construct(
         Job $jobModel,
         private float $tmMatchThreshold = 100,
         private bool $useMt = false,
+        private bool $lockPerfectMatches = true,
     ) {
         $this->jobModel = $jobModel;
     }
@@ -37,8 +43,8 @@ class PretranslateJob implements ShouldQueue
     public function handle(): void
     {
         $segments = $this->jobModel->segments()->orderBy('position')->get();
-        // $untranslated = $segments->filter(fn($s) => !$s->target);
-        $untranslated = $segments;
+        // Locked segments are never overwritten, but stay in $segments as context for their neighbours
+        $untranslated = $segments->filter(fn($s) => !$s->locked);
 
         if ($untranslated->isEmpty()) {
             return;
@@ -129,6 +135,9 @@ class PretranslateJob implements ShouldQueue
                 'target' => $best['target'],
                 'score' => data_get($best, 'score'),
                 'provider_type' => data_get($best, 'provider.type'),
+                'locked' => $this->lockPerfectMatches
+                    && data_get($best, 'provider.type') === 'TM'
+                    && data_get($best, 'score') >= self::LOCK_SCORE,
             ];
 
             if ($segment->repetition_group) {
@@ -140,42 +149,46 @@ class PretranslateJob implements ShouldQueue
 
         // Bulk update individual segments
         if (!empty($individualUpdates)) {
-            $placeholders = implode(', ', array_fill(0, count($individualUpdates), '(?, ?, ?, ?)'));
+            $placeholders = implode(', ', array_fill(0, count($individualUpdates), '(?, ?, ?, ?, ?)'));
             $params = [];
             foreach ($individualUpdates as $id => $targetData) {
                 $params[] = $id;
                 $params[] = $targetData['target'];
                 $params[] = $targetData['provider_type'];
                 $params[] = $targetData['score'];
+                $params[] = (int) $targetData['locked'];
             }
             DB::statement(
                 "UPDATE segments SET
                     target = v.target, updated_at = NOW(),
                     pretranslate_suggestion_provider_type = v.provider_type,
-                    pretranslate_suggestion_score = v.score::decimal
-                 FROM (VALUES $placeholders) AS v(id, target, provider_type, score)
-                 WHERE segments.id::text = v.id",
+                    pretranslate_suggestion_score = v.score::decimal,
+                    locked = (v.locked::int = 1)
+                 FROM (VALUES $placeholders) AS v(id, target, provider_type, score, locked)
+                 WHERE segments.id::text = v.id AND segments.locked = false",
                 $params
             );
         }
 
         // Bulk update repetition groups (updates all members including already-translated ones)
         if (!empty($groupUpdates)) {
-            $placeholders = implode(', ', array_fill(0, count($groupUpdates), '(?, ?, ?, ?)'));
+            $placeholders = implode(', ', array_fill(0, count($groupUpdates), '(?, ?, ?, ?, ?)'));
             $params = [];
             foreach ($groupUpdates as $groupId => $targetData) {
                 $params[] = $groupId;
                 $params[] = $targetData['target'];
                 $params[] = $targetData['provider_type'];
                 $params[] = $targetData['score'];
+                $params[] = (int) $targetData['locked'];
             }
             DB::statement(
                 "UPDATE
                     segments SET target = v.target, updated_at = NOW(),
                     pretranslate_suggestion_provider_type = v.provider_type,
-                    pretranslate_suggestion_score = v.score::decimal
-                 FROM (VALUES $placeholders) AS v(group_id, target, provider_type, score)
-                 WHERE segments.repetition_group::text = v.group_id",
+                    pretranslate_suggestion_score = v.score::decimal,
+                    locked = (v.locked::int = 1)
+                 FROM (VALUES $placeholders) AS v(group_id, target, provider_type, score, locked)
+                 WHERE segments.repetition_group::text = v.group_id AND segments.locked = false",
                 $params
             );
         }

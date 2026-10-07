@@ -25,6 +25,8 @@ class SegmentBulkUpdateRequest extends FormRequest
             'filter_nt'               => 'boolean',
             'filter_mt'               => 'boolean',
             'filter_no_match'         => 'boolean',
+            'filter_locked'           => 'boolean',
+            'filter_not_locked'       => 'boolean',
             'confirmed'               => 'boolean',
             'target'                  => 'nullable|string',
             'save_repetitions'        => 'boolean',
