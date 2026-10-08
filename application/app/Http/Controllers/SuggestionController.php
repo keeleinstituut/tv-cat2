@@ -31,7 +31,8 @@ class SuggestionController extends Controller
 
         $data = SuggestionService::getSuggestions($options);
 
-        return SuggestionResource::collection($data);
+        return SuggestionResource::collection($data)
+            ->additional(['meta' => ['query' => $options->getQ()]]);
     }
 
     /**
@@ -85,7 +86,8 @@ class SuggestionController extends Controller
 
         $data = SuggestionService::getSuggestions($options);
 
-        return SuggestionResource::collection($data);
+        return SuggestionResource::collection($data)
+            ->additional(['meta' => ['query' => $options->getQ()]]);
     }
 
     // /**

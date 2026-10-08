@@ -1,15 +1,26 @@
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
 import type { Suggestion } from "@/lib/api/suggestions"
+import { diffWords } from "diff"
 import { map } from "lodash"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import SegmentEditInput from "./job-segment-edit-input"
 import SuggestionBadge from "./suggestion-badge"
 
-const SuggestionsList = (props: { data: Suggestion[], onSelect?: (data: Suggestion) => void }) => {
-  const { t } = useTranslation()
-  const { data, onSelect } = props
+const stripTags = (html: string) => html.replace(/<[^>]*>/g, '')
+
+const SuggestionsList = (props: { data: Suggestion[], query?: string, onSelect?: (data: Suggestion) => void }) => {
+  const { t, i18n } = useTranslation()
+  const { data, query, onSelect } = props
+  const formatDateTime = (iso: string) =>
+    new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
   const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null)
+
+  const sourceDiff = useMemo(() => {
+    if (!query || !selectedSuggestion) return null
+    const parts = diffWords(stripTags(query), stripTags(selectedSuggestion.source))
+    return parts.some((part) => part.added || part.removed) ? parts : null
+  }, [query, selectedSuggestion])
 
   useEffect(() => {
     setSelectedSuggestion(null)
@@ -50,6 +61,21 @@ const SuggestionsList = (props: { data: Suggestion[], onSelect?: (data: Suggesti
             </TableRow>
             {selectedSuggestion?.provider.type == 'TM' && (
               <>
+                {!!sourceDiff && (
+                  <TableRow>
+                    <TableCell>{t('jobTranslate.suggestionDiffLabel')}: </TableCell>
+                    <TableCell className="whitespace-break-spaces">
+                      {map(sourceDiff, (part, i) => (
+                        <span
+                          key={i}
+                          className={part.added ? 'bg-emerald-200 dark:bg-emerald-900' : part.removed ? 'bg-red-200 dark:bg-red-900 line-through' : undefined}
+                        >
+                          {part.value}
+                        </span>
+                      ))}
+                    </TableCell>
+                  </TableRow>
+                )}
                 <TableRow>
                   <TableCell>{t('jobTranslate.suggestionSourceContextBeforeLabel')}: </TableCell>
                   <TableCell className="whitespace-break-spaces">
@@ -62,6 +88,18 @@ const SuggestionsList = (props: { data: Suggestion[], onSelect?: (data: Suggesti
                     <SegmentEditInput readOnly value={selectedSuggestion?.meta?.source_context_after} />
                   </TableCell>
                 </TableRow>
+                {!!selectedSuggestion.created_at && (
+                  <TableRow>
+                    <TableCell>{t('jobTranslate.suggestionCreatedLabel')}: </TableCell>
+                    <TableCell>{formatDateTime(selectedSuggestion.created_at)}</TableCell>
+                  </TableRow>
+                )}
+                {!!selectedSuggestion.updated_at && (
+                  <TableRow>
+                    <TableCell>{t('jobTranslate.suggestionUpdatedLabel')}: </TableCell>
+                    <TableCell>{formatDateTime(selectedSuggestion.updated_at)}</TableCell>
+                  </TableRow>
+                )}
               </>
             )}
           </TableBody>

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Job;
 use App\Services\LibreTranslateService;
 use App\Services\NoTranslateService;
+use App\Services\SegmentTranslationMemoryService;
 use App\Services\InternalTranslationMemoryService;
 use App\Services\Dto\GetSuggestionsOptions;
 
@@ -18,13 +19,22 @@ class PretranslateJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /** Score given to a 100% text match whose surrounding context also matches. */
+    private const LOCK_SCORE = 101;
+
     private Job $jobModel;
 
     /**
-     * Create a new job instance.
+     * @param float $tmMatchThreshold   Minimum TM/NT match score to accept a suggestion.
+     * @param bool  $useMt              Fall back to machine translation when no TM/NT match reaches the threshold.
+     * @param bool  $lockPerfectMatches Lock (and confirm) segments filled by a 101% (context) TM match.
      */
-    public function __construct(Job $jobModel)
-    {
+    public function __construct(
+        Job $jobModel,
+        private float $tmMatchThreshold = 100,
+        private bool $useMt = false,
+        private bool $lockPerfectMatches = true,
+    ) {
         $this->jobModel = $jobModel;
     }
 
@@ -34,8 +44,8 @@ class PretranslateJob implements ShouldQueue
     public function handle(): void
     {
         $segments = $this->jobModel->segments()->orderBy('position')->get();
-        // $untranslated = $segments->filter(fn($s) => !$s->target);
-        $untranslated = $segments;
+        // Locked segments are never overwritten, but stay in $segments as context for their neighbours
+        $untranslated = $segments->filter(fn($s) => !$s->locked);
 
         if ($untranslated->isEmpty()) {
             return;
@@ -86,7 +96,7 @@ class PretranslateJob implements ShouldQueue
             $ntResults[$source] = NoTranslateService::getSuggestions($ntOptions);
         }
 
-        // Determine which sources still need MT (no TM/NT match with score >= 98)
+        // Determine which sources still need MT (no TM/NT match with score >= threshold)
         $bestMatches = [];
         $mtCandidates = [];
 
@@ -100,21 +110,23 @@ class PretranslateJob implements ShouldQueue
             }
         }
 
-        // // Single HTTP request for all MT candidates
-        // if (!empty($mtCandidates)) {
-        //     $mtResults = LibreTranslateService::translateBatch($mtCandidates, $sourceLocale, $targetLocale);
-        //     foreach ($mtCandidates as $source) {
-        //         $mtSuggestions = $mtResults[$source] ?? [];
-        //         $best = $this->getBestMatch($mtSuggestions);
-        //         if ($best) {
-        //             $bestMatches[$source] = $best;
-        //         }
-        //     }
-        // }
+        // Single HTTP request for all MT candidates
+        if ($this->useMt && !empty($mtCandidates)) {
+            $mtResults = LibreTranslateService::translateBatch($mtCandidates, $sourceLocale, $targetLocale);
+            foreach ($mtCandidates as $source) {
+                $mtSuggestions = $mtResults[$source] ?? [];
+                $best = $this->getBestMatch($mtSuggestions);
+                if ($best) {
+                    $bestMatches[$source] = $best;
+                }
+            }
+        }
 
         // Build update maps: individual segments vs. repetition groups
         $individualUpdates = [];
         $groupUpdates = [];
+        // Segments that end up locked by a 101% match are confirmed too (and saved to writable TMs below)
+        $confirmIds = [];
 
         foreach ($untranslated as $segment) {
             $best = $bestMatches[$segment->source] ?? null;
@@ -126,7 +138,14 @@ class PretranslateJob implements ShouldQueue
                 'target' => $best['target'],
                 'score' => data_get($best, 'score'),
                 'provider_type' => data_get($best, 'provider.type'),
+                'locked' => $this->lockPerfectMatches
+                    && data_get($best, 'provider.type') === 'TM'
+                    && data_get($best, 'score') >= self::LOCK_SCORE,
             ];
+
+            if ($data['locked']) {
+                $confirmIds[] = $segment->id;
+            }
 
             if ($segment->repetition_group) {
                 $groupUpdates[$segment->repetition_group] = $data;
@@ -137,43 +156,58 @@ class PretranslateJob implements ShouldQueue
 
         // Bulk update individual segments
         if (!empty($individualUpdates)) {
-            $placeholders = implode(', ', array_fill(0, count($individualUpdates), '(?, ?, ?, ?)'));
+            $placeholders = implode(', ', array_fill(0, count($individualUpdates), '(?, ?, ?, ?, ?)'));
             $params = [];
             foreach ($individualUpdates as $id => $targetData) {
                 $params[] = $id;
                 $params[] = $targetData['target'];
                 $params[] = $targetData['provider_type'];
                 $params[] = $targetData['score'];
+                $params[] = (int) $targetData['locked'];
             }
             DB::statement(
                 "UPDATE segments SET
                     target = v.target, updated_at = NOW(),
                     pretranslate_suggestion_provider_type = v.provider_type,
-                    pretranslate_suggestion_score = v.score::decimal
-                 FROM (VALUES $placeholders) AS v(id, target, provider_type, score)
-                 WHERE segments.id::text = v.id",
+                    pretranslate_suggestion_score = v.score::decimal,
+                    locked = (v.locked::int = 1),
+                    confirmed = (segments.confirmed OR v.locked::int = 1)
+                 FROM (VALUES $placeholders) AS v(id, target, provider_type, score, locked)
+                 WHERE segments.id::text = v.id AND segments.locked = false",
                 $params
             );
         }
 
         // Bulk update repetition groups (updates all members including already-translated ones)
         if (!empty($groupUpdates)) {
-            $placeholders = implode(', ', array_fill(0, count($groupUpdates), '(?, ?, ?, ?)'));
+            $placeholders = implode(', ', array_fill(0, count($groupUpdates), '(?, ?, ?, ?, ?)'));
             $params = [];
             foreach ($groupUpdates as $groupId => $targetData) {
                 $params[] = $groupId;
                 $params[] = $targetData['target'];
                 $params[] = $targetData['provider_type'];
                 $params[] = $targetData['score'];
+                $params[] = (int) $targetData['locked'];
             }
             DB::statement(
                 "UPDATE
                     segments SET target = v.target, updated_at = NOW(),
                     pretranslate_suggestion_provider_type = v.provider_type,
-                    pretranslate_suggestion_score = v.score::decimal
-                 FROM (VALUES $placeholders) AS v(group_id, target, provider_type, score)
-                 WHERE segments.repetition_group::text = v.group_id",
+                    pretranslate_suggestion_score = v.score::decimal,
+                    locked = (v.locked::int = 1),
+                    confirmed = (segments.confirmed OR v.locked::int = 1)
+                 FROM (VALUES $placeholders) AS v(group_id, target, provider_type, score, locked)
+                 WHERE segments.repetition_group::text = v.group_id AND segments.locked = false",
                 $params
+            );
+        }
+
+        if (!empty($confirmIds)) {
+            // Reload so targets and neighbours reflect the updates above
+            $reloaded = $this->jobModel->segments()->orderBy('position')->get();
+            SegmentTranslationMemoryService::saveConfirmed(
+                $reloaded->whereIn('id', $confirmIds)->values(),
+                $reloaded,
             );
         }
     }
@@ -187,8 +221,12 @@ class PretranslateJob implements ShouldQueue
             ->sortByDesc('score')
             ->first();
 
-        if ($bestScoreMatch && $bestScoreMatch['score'] >= 98) {
+        if ($bestScoreMatch && $bestScoreMatch['score'] >= $this->tmMatchThreshold) {
             return $bestScoreMatch;
+        }
+
+        if (!$this->useMt) {
+            return null;
         }
 
         $mtMatch = collect($suggestions)

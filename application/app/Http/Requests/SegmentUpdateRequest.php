@@ -17,6 +17,7 @@ class SegmentUpdateRequest extends FormRequest
             'target' => 'nullable|string',
             'save_repetitions' => 'boolean',
             'confirmed' => 'boolean',
+            'locked' => 'boolean',
         ];
     }
 }

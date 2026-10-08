@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SegmentBulkUpdateRequest;
 use App\Http\Requests\SegmentIndexRequest;
+use App\Http\Requests\SegmentReplaceRequest;
 use App\Http\Requests\SegmentUpdateRequest;
 use App\Http\Resources\SegmentResource;
 use App\Models\Job;
 use App\Models\Segment;
 use App\Models\TranslationMemorySegment;
+use App\Services\SegmentTranslationMemoryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -63,10 +65,16 @@ class SegmentController extends Controller
 
             $this->authorize('update', $obj);
 
+            // A locked segment only accepts changes to the lock itself
+            if ($obj->locked && ($params->has('target') || $params->has('confirmed'))) {
+                abort(423, 'Segment is locked.');
+            }
+
             if ($params->has('target')) {
                 if ($obj->repetition_group && $params->get('save_repetitions', True)) {
                     $this->getBaseQuery()
                         ->where('repetition_group', $obj->repetition_group)
+                        ->where('locked', false)
                         ->update([
                             'target' => $params->get('target'),
                         ]);
@@ -81,6 +89,11 @@ class SegmentController extends Controller
 
             if ($params->has('confirmed')) {
                 $obj->confirmed = $params->get('confirmed');
+                $obj->save();
+            }
+
+            if ($params->has('locked')) {
+                $obj->locked = $params->get('locked');
                 $obj->save();
             }
 
@@ -133,7 +146,9 @@ class SegmentController extends Controller
         $this->authorize('view', $job);
 
         return DB::transaction(function () use ($params) {
-            $query = $this->getBaseQuery()->where('job_id', $params->get('job_id'));
+            $query = $this->getBaseQuery()
+                ->where('job_id', $params->get('job_id'))
+                ->where('locked', false);
 
             $segmentIds = $params->get('segment_ids', []);
             if (!empty($segmentIds)) {
@@ -165,6 +180,7 @@ class SegmentController extends Controller
                 if ($repetitionGroups->isNotEmpty()) {
                     $query = $this->getBaseQuery()
                         ->where('job_id', $params->get('job_id'))
+                        ->where('locked', false)
                         ->where(function ($q) use ($segmentIds, $repetitionGroups) {
                             if (!empty($segmentIds)) {
                                 $q->whereIn('id', $segmentIds);
@@ -179,57 +195,42 @@ class SegmentController extends Controller
 
             // Save confirmed segments to writable TMs with position context
             if ($params->get('confirmed')) {
-                $segments = (clone $query)->orderBy('position')->get();
+                SegmentTranslationMemoryService::saveConfirmed((clone $query)->orderBy('position')->get());
+            }
 
-                // Build position-keyed map for efficient prev/next lookup
-                $byPosition = $segments->keyBy('position');
-                $positions  = $byPosition->keys()->sort()->values();
+            return response()->json(['meta' => ['count' => $count]]);
+        });
+    }
 
-                $writableTms = $segments->first()?->job
-                    ?->project
-                    ?->translationMemories()
-                    ->wherePivot('write', true)
-                    ->get() ?? collect();
+    public function replace(SegmentReplaceRequest $request)
+    {
+        $params = collect($request->validated());
 
-                if ($writableTms->isNotEmpty()) {
-                    foreach ($segments as $seg) {
-                        $posIdx  = $positions->search($seg->position);
-                        $prevPos = $posIdx > 0 ? $positions->get($posIdx - 1) : null;
-                        $nextPos = $posIdx !== false ? $positions->get($posIdx + 1) : null;
+        $job = Job::findOrFail($params->get('job_id'));
+        $this->authorize('view', $job);
 
-                        // Fall back to DB for prev/next outside the bulk set
-                        $prev = $prevPos !== null
-                            ? $byPosition->get($prevPos)
-                            : Segment::where('job_id', $seg->job_id)
-                                ->where('position', '<', $seg->position)
-                                ->orderBy('position', 'desc')
-                                ->first();
+        $target = $params->get('target');
+        $replaceTarget = $params->get('replace_target') ?? '';
 
-                        $next = $nextPos !== null
-                            ? $byPosition->get($nextPos)
-                            : Segment::where('job_id', $seg->job_id)
-                                ->where('position', '>', $seg->position)
-                                ->orderBy('position', 'asc')
-                                ->first();
+        // Normalise so applyFilters reads 'target_filter' for the target text search
+        $params->put('target_filter', $target);
 
-                        foreach ($writableTms as $tm) {
-                            TranslationMemorySegment::updateOrCreate(
-                                [
-                                    'translation_memory_id' => $tm->id,
-                                    'segment_id'            => $seg->id,
-                                ],
-                                [
-                                    'source'                => $seg->source,
-                                    'source_context_before' => $prev?->source,
-                                    'source_context_after'  => $next?->source,
-                                    'target'                => $seg->target,
-                                    'target_context_before' => $prev?->target,
-                                    'target_context_after'  => $next?->target,
-                                ]
-                            );
-                        }
-                    }
+        return DB::transaction(function () use ($params, $target, $replaceTarget) {
+            $query = $this->getBaseQuery()
+                ->where('job_id', $params->get('job_id'))
+                ->where('locked', false);
+
+            $segments = $this->applyFilters($query, $params)->get();
+
+            $count = 0;
+            foreach ($segments as $segment) {
+                $newTarget = str_replace($target, $replaceTarget, $segment->target);
+                if ($newTarget === $segment->target) {
+                    continue;
                 }
+                $segment->target = $newTarget;
+                $segment->save();
+                $count++;
             }
 
             return response()->json(['meta' => ['count' => $count]]);
@@ -282,6 +283,12 @@ class SegmentController extends Controller
                     $q->orWhere($fn);
                 }
             });
+        }
+
+        $hasLocked    = $params->get('filter_locked');
+        $hasNotLocked = $params->get('filter_not_locked');
+        if ($hasLocked xor $hasNotLocked) {
+            $query = $query->where('locked', (bool) $hasLocked);
         }
 
         return $query;

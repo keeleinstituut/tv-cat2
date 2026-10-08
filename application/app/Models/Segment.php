@@ -16,6 +16,7 @@ class Segment extends Model
         'source',
         'target',
         'confirmed',
+        'locked',
         'position',
         'xliff_mrk_id',
         'xliff_internal_id',
@@ -24,6 +25,7 @@ class Segment extends Model
     protected $casts = [
         'pretranslate_suggestion_score' => 'double',
         'confirmed'                     => 'boolean',
+        'locked'                        => 'boolean',
     ];
 
     public function job() {

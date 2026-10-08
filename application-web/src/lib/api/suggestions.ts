@@ -10,6 +10,8 @@ export type Suggestion = {
   source: string
   target: string
   score: number | null
+  created_at?: string
+  updated_at?: string
   meta?: {
     source_context_before?: string
     source_context_after?: string
@@ -20,7 +22,7 @@ export type Suggestion = {
 
 export const getJobSuggestions = async ({ queryKey }: { queryKey: any[] }) => {
   const [_, job_id, params] = queryKey
-  return (await apiClient.get<DataResponse<Suggestion[]>>(`/api/jobs/${job_id}/suggestions`, {
+  return (await apiClient.get<DataResponse<Suggestion[], { meta: { query: string } }>>(`/api/jobs/${job_id}/suggestions`, {
     params: omitBy(params, isNil)
   })).data
 }

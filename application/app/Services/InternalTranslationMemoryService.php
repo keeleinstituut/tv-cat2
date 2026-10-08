@@ -240,6 +240,7 @@ class InternalTranslationMemoryService
                         target_context_before,
                         target_context_after,
                         translation_memory_id,
+                        created_at,
                         updated_at,
                         similarity(source, uniq.q) AS trgm_score
                     FROM $table
@@ -265,6 +266,7 @@ class InternalTranslationMemoryService
                     candidates.target_context_before,
                     candidates.target_context_after,
                     candidates.translation_memory_id,
+                    candidates.created_at,
                     candidates.updated_at,
                     candidates.trgm_score,
                     (candidates.source_context_before IS NOT DISTINCT FROM queries.ctx_before
@@ -324,6 +326,7 @@ class InternalTranslationMemoryService
                 'target'     => $row->target,
                 'score'      => $score,
                 'raw_score'  => $row->trgm_score,
+                'created_at' => $row->created_at,
                 'updated_at' => $row->updated_at,
                 'meta' => [
                     'source_context_before' => $row->source_context_before,

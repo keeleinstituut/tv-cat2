@@ -4,10 +4,11 @@ import { Separator } from "@/components/ui/separator"
 import { getJob } from "@/lib/api/jobs"
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query"
 import { useParams } from "react-router"
-import { Bold, Italic, Underline, Subscript, Superscript, Cat, TextSearch, SlidersHorizontal } from "lucide-react"
+import { Bold, Italic, Underline, Subscript, Superscript, Cat, TextSearch, SlidersHorizontal, Replace, ChevronLeft, ChevronRight } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
-import { getSegments, putSegment, type Segment } from "@/lib/api/segments"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { getSegments, putSegment, replaceSegments, type Segment } from "@/lib/api/segments"
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import { omitBy } from "lodash"
 import { useDebounce } from "@uidotdev/usehooks"
@@ -15,10 +16,11 @@ import { useForm, useWatch } from "react-hook-form"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 import { getJobSuggestions } from "@/lib/api/suggestions"
-import { useTranslation } from "react-i18next"
 import JobSegmentsList from "./job-segments-list"
 import SuggestionsList from "./job-suggestions-list"
 import JobTranslateFilterPanel, { type AdvancedFilterState, advancedFilterDefaultState } from "./job-translate-filter-panel"
+import { useTranslation } from "react-i18next"
+import { useConfirm } from "@/components/confirm-provider"
 
 const filterFormDefaultValues = {
   source: '',
@@ -78,6 +80,7 @@ const reducer = (state: State, action: Action): State => {
 
 const JobTranslatePage = () => {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const { job_id } = useParams()
   const [state, dispatch] = useReducer(reducer, reducerInitialState)
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
@@ -85,6 +88,8 @@ const JobTranslatePage = () => {
   const [activeRightTab, setActiveRightTab] = useState('cat')
   const [showHiddenChars] = useState(false)
   const [isOverwriteMode] = useState(false)
+  const [showReplace, setShowReplace] = useState(false)
+  const [replaceWith, setReplaceWith] = useState('')
 
   const concordanceSearchForm = useForm({
     defaultValues: concordanceSearchFormDefaultValues,
@@ -105,14 +110,14 @@ const JobTranslatePage = () => {
     return s + p + o
   }, [advancedFilters])
 
-  const segmentsQueryParam = useMemo(() => {
-    const fn = (value: any) => value === "" || value === undefined
-
+  const advancedFilterParams = useMemo(() => {
     const advancedParams: Record<string, any> = {}
     const { segmentStatus, pretranslated, sort } = advancedFilters
     if (segmentStatus.empty) advancedParams.filter_empty = 1
     if (segmentStatus.not_empty) advancedParams.filter_not_empty = 1
     if (segmentStatus.first_repetition) advancedParams.filter_first_repetition = 1
+    if (segmentStatus.locked) advancedParams.filter_locked = 1
+    if (segmentStatus.not_locked) advancedParams.filter_not_locked = 1
     if (pretranslated.score_101) advancedParams.filter_score_101 = 1
     if (pretranslated.score_100) advancedParams.filter_score_100 = 1
     if (pretranslated.score_99) advancedParams.filter_score_99 = 1
@@ -123,14 +128,20 @@ const JobTranslatePage = () => {
     if (pretranslated.no_match) advancedParams.filter_no_match = 1
     if (sort !== 'none') advancedParams.sort = sort
 
+    return advancedParams
+  }, [advancedFilters])
+
+  const segmentsQueryParam = useMemo(() => {
+    const fn = (value: any) => value === "" || value === undefined
+
     return omitBy({
       job_id,
       source: filterFormValues.source,
       target: filterFormValues.target,
       per_page: 500,
-      ...advancedParams,
+      ...advancedFilterParams,
     }, fn)
-  }, [job_id, filterFormValues.source, filterFormValues.target, advancedFilters])
+  }, [job_id, filterFormValues.source, filterFormValues.target, advancedFilterParams])
 
   const suggestionsQueryParam = useMemo(() => {
     const fn = (value: any) => value === "" || value === null || value === undefined
@@ -174,10 +185,17 @@ const JobTranslatePage = () => {
     mutationFn: putSegment,
     onSuccess: () => {
       segmentsQuery.refetch()
+    },
+    // e.g. 423 when the segment was locked elsewhere — resync with the server
+    onError: () => {
+      segmentsQuery.refetch()
     }
   })
 
   const handleSegmentChange = useCallback((segment: Segment, data: Partial<Pick<Segment, "target" | "confirmed">>) => {
+    // Locked segments can't be edited or confirmed until they're unlocked
+    if (state.edited[segment.id]?.locked ?? segment.locked) return
+
     dispatch({ type: 'EDIT_SEGMENT', data: { id: segment.id, ...data } })
 
     const existing = debounceTimersRef.current.get(segment.id)
@@ -189,7 +207,24 @@ const JobTranslatePage = () => {
     }, 800)
 
     debounceTimersRef.current.set(segment.id, timer)
-  }, [updateSegmentMutation])
+  }, [updateSegmentMutation, state.edited])
+
+  const handleToggleLock = useCallback(async (segment: Segment) => {
+    const isLocked = state.edited[segment.id]?.locked ?? segment.locked
+
+    if (isLocked) {
+      const ok = await confirm({
+        title: t('jobTranslate.unlockConfirmTitle'),
+        description: t('jobTranslate.unlockConfirmDescription'),
+        confirmText: t('jobTranslate.unlockConfirmAction'),
+        variant: 'destructive',
+      })
+      if (!ok) return
+    }
+
+    dispatch({ type: 'EDIT_SEGMENT', data: { id: segment.id, locked: !isLocked } })
+    updateSegmentMutation.mutate({ id: segment.id, body: { locked: !isLocked } })
+  }, [updateSegmentMutation, state.edited, confirm, t])
 
   const segmentsQuery = useInfiniteQuery({
     queryKey: ['segments', segmentsQueryParam],
@@ -204,6 +239,54 @@ const JobTranslatePage = () => {
     },
     initialPageParam: 1,
   })
+
+  const replaceMutation = useMutation({
+    mutationFn: replaceSegments,
+    onSuccess: () => {
+      segmentsQuery.refetch()
+    },
+  })
+
+  const allRows = segmentsQuery.data?.pages.flatMap(p => p.data) ?? []
+  const currentMatchIndex = allRows.findIndex(s => s.id === state.currentSegment?.id)
+
+  const handleNextMatch = useCallback(() => {
+    if (!allRows.length) return
+    const nextIndex = (currentMatchIndex + 1) % allRows.length
+    dispatch({ type: 'SET_CURRENT_SEGMENT', data: { segment: allRows[nextIndex] } })
+  }, [allRows, currentMatchIndex])
+
+  const handlePrevMatch = useCallback(() => {
+    if (!allRows.length) return
+    const prevIndex = (currentMatchIndex - 1 + allRows.length) % allRows.length
+    dispatch({ type: 'SET_CURRENT_SEGMENT', data: { segment: allRows[prevIndex] } })
+  }, [allRows, currentMatchIndex])
+
+  const handleReplace = useCallback(() => {
+    if (!state.currentSegment || !filterFormValues.target) return
+    const segment = state.currentSegment
+    const currentTarget = state.edited[segment.id]?.target ?? segment.target ?? ''
+    handleSegmentChange(segment, { target: currentTarget.replaceAll(filterFormValues.target, replaceWith) })
+  }, [state.currentSegment, state.edited, filterFormValues.target, replaceWith, handleSegmentChange])
+
+  const handleReplaceAll = useCallback(async () => {
+    if (!filterFormValues.target || !job_id) return
+    const ok = await confirm({
+      title: t('jobTranslate.replaceAllConfirmTitle'),
+      description: t('jobTranslate.replaceAllConfirmDescription'),
+      confirmText: t('jobTranslate.replaceAll'),
+      variant: 'destructive',
+    })
+    if (!ok) return
+    const { sort: _sort, ...filterParams } = advancedFilterParams
+    replaceMutation.mutate({
+      job_id,
+      source: filterFormValues.source || undefined,
+      target: filterFormValues.target,
+      replace_target: replaceWith,
+      ...filterParams,
+    })
+  }, [filterFormValues.source, filterFormValues.target, job_id, replaceWith, advancedFilterParams, replaceMutation, confirm, t])
 
   const selectedSegmentMeta = useMemo(() => {
     if (!state.currentSegment) {
@@ -284,11 +367,10 @@ const JobTranslatePage = () => {
                 </TooltipTrigger>
                 <TooltipContent>{t('jobTranslate.toolbarSuperscript')}</TooltipContent>
               </Tooltip>
-
             </div>
           </div>
 
-          <div className="flex w-full items-center gap-1 p-4 lg:gap-2 lg:px-6 border-b">
+          <div className="flex w-full items-start gap-1 p-4 lg:gap-2 lg:px-6 border-b">
             <Button
               variant={isFilterPanelOpen || activeAdvancedFilterCount > 0 ? "secondary" : "ghost"}
               size="icon"
@@ -303,10 +385,38 @@ const JobTranslatePage = () => {
               )}
             </Button>
             <Input placeholder={t('jobTranslate.filterBarSourcePlaceholder')} {...filterForm.register('source')} />
-            <Input placeholder={t('jobTranslate.filterBarTargetPlaceholder')} {...filterForm.register('target')} />
+            <div className="w-full">
+              <InputGroup>
+                <InputGroupInput placeholder={t('jobTranslate.filterBarTargetPlaceholder')} {...filterForm.register('target')} />
+                <InputGroupAddon align="inline-end">
+                  <Button variant={showReplace ? 'secondary' : 'ghost'} size="icon" onClick={() => setShowReplace(v => !v)}>
+                    <Replace />
+                  </Button>
+                </InputGroupAddon>
+              </InputGroup>
+              {showReplace && (
+                <div className="flex w-full items-center gap-1 pt-4">
+                  <Input
+                    placeholder={t('jobTranslate.replaceWithPlaceholder')}
+                    value={replaceWith}
+                    onChange={(e) => setReplaceWith(e.target.value)}
+                  />
+                  <Button variant="outline" size="sm" onClick={handleReplace} disabled={!filterFormValues.target || !state.currentSegment}>
+                    {t('jobTranslate.replace')}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleReplaceAll} disabled={!filterFormValues.target || replaceMutation.isPending}>
+                    {t('jobTranslate.replaceAll')}
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={handlePrevMatch}><ChevronLeft /></Button>
+                  <Button variant="ghost" size="icon" onClick={handleNextMatch}><ChevronRight /></Button>
+                </div>
+              )}
+            </div>
             <Button variant="ghost" onClick={() => {
               filterForm.reset(filterFormDefaultValues)
               setAdvancedFilters(advancedFilterDefaultState)
+              setShowReplace(false)
+              setReplaceWith('')
             }}>
               {t('jobTranslate.filterBarClear')}
             </Button>
@@ -328,6 +438,7 @@ const JobTranslatePage = () => {
               data: { segment },
             })}
             onSegmentChange={handleSegmentChange}
+            onToggleLock={handleToggleLock}
             showHiddenChars={showHiddenChars}
             isOverwriteMode={isOverwriteMode}
           />
@@ -359,6 +470,7 @@ const JobTranslatePage = () => {
               ) : (
                 <SuggestionsList
                   data={suggestionsQuery.data?.data || []}
+                  query={suggestionsQuery.data?.meta?.query}
                   onSelect={(suggestion) => {
                     if (state.currentSegment) {
                       handleSegmentChange(state.currentSegment, { target: suggestion.target })
@@ -382,7 +494,7 @@ const JobTranslatePage = () => {
                   <span>{t('jobTranslate.rightPanelEnterTermsToSearch')}</span>
                 </div>
               ) : (
-                <SuggestionsList data={concordanceSearchSuggestionsQuery.data.data} />
+                <SuggestionsList data={concordanceSearchSuggestionsQuery.data.data} query={concordanceSearchSuggestionsQuery.data.meta?.query} />
               )}
             </div>
           </TabsContent>
