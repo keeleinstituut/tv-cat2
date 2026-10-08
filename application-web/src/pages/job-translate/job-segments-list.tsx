@@ -4,7 +4,7 @@ import type { Segment } from "@/lib/api/segments"
 import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query"
 import type { VirtualItem, Virtualizer } from "@tanstack/react-virtual"
 import { last } from "lodash"
-import { Repeat, Repeat1 } from "lucide-react"
+import { Circle, CircleCheck, Lock, LockOpen, Repeat, Repeat1 } from "lucide-react"
 import { useCallback, useEffect, useState, type JSX } from "react"
 import { useTranslation } from "react-i18next"
 import SegmentEditInput from "./job-segment-edit-input"
@@ -18,12 +18,13 @@ interface ButtonItemProps {
   disabled?: boolean
   active?: boolean
   onClick?: () => void
+  title?: string
   activeIcon: JSX.Element,
   inactiveIcon: JSX.Element,
 }
 
 function ButtonItem(props: ButtonItemProps) {
-  const { className, disabled, active, onClick, activeIcon, inactiveIcon } = props
+  const { className, disabled, active, onClick, title, activeIcon, inactiveIcon } = props
 
   return (
     <button
@@ -33,6 +34,7 @@ function ButtonItem(props: ButtonItemProps) {
         className,
       )}
       onClick={onClick}
+      title={title}
     >
       {active ? activeIcon : inactiveIcon}
     </button>
@@ -48,13 +50,14 @@ type JobSegmentsListProps = {
   currentSegmentId: string | null
   onSegmentClick: (segment: Segment) => void
   onSegmentChange: (segment: Segment, value: Partial<Pick<Segment, "target" | "confirmed">>) => void
+  onToggleLock: (segment: Segment) => void
   showHiddenChars: boolean
   isOverwriteMode: boolean
 }
 
 const JobSegmentsList = (props: JobSegmentsListProps) => {
   const { t } = useTranslation()
-  const { segmentsQuery, editedSegments, currentSegmentId, onSegmentClick, onSegmentChange, showHiddenChars, isOverwriteMode } = props
+  const { segmentsQuery, editedSegments, currentSegmentId, onSegmentClick, onSegmentChange, onToggleLock, showHiddenChars, isOverwriteMode } = props
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [anchorId, setAnchorId] = useState<string | null>(null)
@@ -119,6 +122,7 @@ const JobSegmentsList = (props: JobSegmentsListProps) => {
     const isLoaderRow = virtualRow.index > allRows.length - 1
     const segment = allRows[virtualRow.index]
     const isActive = !isLoaderRow && segment.id === currentSegmentId
+    const isLocked = !isLoaderRow && (editedSegments[segment.id]?.locked ?? segment.locked)
     const isSelected = !isLoaderRow && (isVirtualAllSelected || selectedIds.has(segment.id))
 
     return (
@@ -155,6 +159,14 @@ const JobSegmentsList = (props: JobSegmentsListProps) => {
                   onChange={(value) => onSegmentChange(segment, { target: value })}
                   showHiddenChars={showHiddenChars}
                   isOverwriteMode={isOverwriteMode}
+                  locked={isLocked}
+                />
+                <ButtonItem
+                  disabled={isLocked}
+                  active={editedSegments[segment.id]?.confirmed ?? segment.confirmed}
+                  inactiveIcon={<Circle size={16} />}
+                  activeIcon={<CircleCheck size={16} className="text-emerald-400" />}
+                  onClick={() => !isLocked && onSegmentChange(segment, { confirmed: !(editedSegments[segment.id]?.confirmed ?? segment.confirmed)})}
                 />
                 <span className="flex self-stretch w-[40px] text-xs mx-1">
                   <SuggestionBadge providerType={segment.pretranslate_suggestion_provider_type} score={segment.pretranslate_suggestion_score} className="h-full" />
@@ -171,12 +183,19 @@ const JobSegmentsList = (props: JobSegmentsListProps) => {
                     )
                   }
                 />
+                <ButtonItem
+                  active={isLocked}
+                  title={isLocked ? t('jobTranslate.segmentLocked') : t('jobTranslate.segmentUnlocked')}
+                  inactiveIcon={<LockOpen size={16} />}
+                  activeIcon={<Lock size={16} className="text-orange-400" />}
+                  onClick={() => onToggleLock(segment)}
+                />
               </>
             )}
         </div>
       </div>
     )
-  }, [allRows, currentSegmentId, selectedIds, isVirtualAllSelected, handleRowClick, showHiddenChars, isOverwriteMode])
+  }, [allRows, editedSegments, currentSegmentId, selectedIds, isVirtualAllSelected, handleRowClick, onSegmentChange, onToggleLock, showHiddenChars, isOverwriteMode, t])
 
   const totalCount = segmentsQuery.data?.pages[0]?.meta.total
 

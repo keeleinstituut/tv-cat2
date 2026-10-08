@@ -35,6 +35,7 @@ type SegmentEditInputProps =
       onChange?: (value: string) => void
       showHiddenChars?: boolean
       isOverwriteMode?: boolean
+      locked?: boolean
     }
 
 const SegmentEditInputEditable = (props: {
@@ -45,8 +46,9 @@ const SegmentEditInputEditable = (props: {
   onChange?: (value: string) => void
   showHiddenChars?: boolean
   isOverwriteMode?: boolean
+  locked?: boolean
 }) => {
-  const { originalSegment, editedSegment, className, onClick, onChange, showHiddenChars, isOverwriteMode } = props
+  const { originalSegment, editedSegment, className, onClick, onChange, showHiddenChars, isOverwriteMode, locked } = props
 
   const ref = useRef<HTMLDivElement>(null)
   // Tracks the last value we set or emitted to avoid overwriting the cursor position
@@ -62,18 +64,18 @@ const SegmentEditInputEditable = (props: {
   }, [editedSegment, originalSegment])
 
   const handleInput = useCallback(() => {
-    if (!ref.current) return
+    if (!ref.current || locked) return
     const html = sanitize(ref.current.innerHTML)
     lastValueRef.current = html
     if (onChange) onChange(html)
-  }, [onChange])
+  }, [onChange, locked])
 
   const handleClick = useCallback(() => {
     if (onClick) onClick()
   }, [onClick])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!isOverwriteMode || e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return
+    if (locked || !isOverwriteMode || e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return
     const sel = window.getSelection()
     if (!sel || !sel.rangeCount) return
     const range = sel.getRangeAt(0)
@@ -90,19 +92,21 @@ const SegmentEditInputEditable = (props: {
     sel.addRange(newRange)
     document.execCommand('insertText', false, e.key)
     handleInput()
-  }, [isOverwriteMode, handleInput])
+  }, [locked, isOverwriteMode, handleInput])
 
   const editableClassName = [
     'p-2 outline-none min-h-8',
     className ?? '',
     showHiddenChars ? 'underline decoration-dotted decoration-muted-foreground/30 underline-offset-2' : '',
     isOverwriteMode ? 'caret-orange-500' : '',
+    locked ? 'cursor-not-allowed bg-muted/40 text-muted-foreground' : '',
   ].filter(Boolean).join(' ')
 
   return (
     <div
       ref={ref}
-      contentEditable
+      contentEditable={!locked}
+      aria-readonly={locked}
       suppressContentEditableWarning
       className={editableClassName}
       onInput={handleInput}

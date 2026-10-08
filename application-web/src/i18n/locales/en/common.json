@@ -55,6 +55,11 @@
     "filterBarSourcePlaceholder": "Filter source",
     "filterBarTargetPlaceholder": "Filter target",
     "filterBarClear": "Clear filter",
+    "replaceWithPlaceholder": "Replace with",
+    "replace": "Replace",
+    "replaceAll": "Replace all",
+    "replaceAllConfirmTitle": "Replace in all matching segments?",
+    "replaceAllConfirmDescription": "This replaces the text in the target of every unlocked segment matching the current filters. This cannot be undone.",
 
     "statusConfirmedLabel": "Confirmed",
     "statusSegmentsLabel": "segments",
@@ -82,6 +87,11 @@
     "filterStatusEdited": "Edited",
     "filterStatusNotEdited": "Not edited",
     "filterStatusLocked": "Locked",
+    "segmentLocked": "Segment locked — click to unlock",
+    "segmentUnlocked": "Segment unlocked — click to lock",
+    "unlockConfirmTitle": "Unlock segment?",
+    "unlockConfirmDescription": "This segment was locked because it is a 101% translation memory match. Unlocking it allows it to be edited and overwritten.",
+    "unlockConfirmAction": "Unlock",
     "filterStatusNotLocked": "Not locked",
     "filterStatusResolvedComments": "Resolved comments",
     "filterStatusNotResolved": "Not resolved",
@@ -126,7 +136,10 @@
     "suggestionProviderLabel": "Provider",
     "suggestionNameLabel": "Name",
     "suggestionSourceContextBeforeLabel": "Source context before",
-    "suggestionSourceContextAfterLabel": "Source context after"
+    "suggestionSourceContextAfterLabel": "Source context after",
+    "suggestionCreatedLabel": "Created",
+    "suggestionUpdatedLabel": "Updated",
+    "suggestionDiffLabel": "Difference from searched text"
   },
   "common": {
     "close": "Close",

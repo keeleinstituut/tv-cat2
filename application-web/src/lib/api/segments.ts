@@ -8,6 +8,7 @@ export type Segment = {
   source: string
   target: string
   confirmed: boolean
+  locked: boolean
   position: number
   created_at: string
   updated_at: string
@@ -21,6 +22,7 @@ export type SegmentPutPayload = {
   body: {
     target?: string
     confirmed?: boolean
+    locked?: boolean
   }
 }
 
@@ -36,4 +38,16 @@ export const getSegments = async ({ queryKey, pageParam }: { queryKey: any[], pa
 
 export const putSegment = async (payload: SegmentPutPayload) => {
   return (await apiClient.put<DataResponse<Segment>>(`/api/segments/${payload.id}`, payload.body)).data
+}
+
+export type SegmentReplacePayload = {
+  job_id: string
+  source?: string
+  target: string
+  replace_target: string
+  [filter: string]: any
+}
+
+export const replaceSegments = async (payload: SegmentReplacePayload) => {
+  return (await apiClient.put<{ meta: { count: number } }>('/api/segments/replace', payload)).data
 }

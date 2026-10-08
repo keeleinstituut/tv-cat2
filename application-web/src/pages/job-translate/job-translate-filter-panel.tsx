@@ -8,6 +8,8 @@ export type SegmentStatusFilter = {
   empty: boolean
   not_empty: boolean
   first_repetition: boolean
+  locked: boolean
+  not_locked: boolean
 }
 
 export type PretranslatedFilter = {
@@ -37,7 +39,7 @@ export type AdvancedFilterState = {
 }
 
 export const advancedFilterDefaultState: AdvancedFilterState = {
-  segmentStatus: { empty: false, not_empty: false, first_repetition: false },
+  segmentStatus: { empty: false, not_empty: false, first_repetition: false, locked: false, not_locked: false },
   pretranslated: { score_101: false, score_100: false, score_99: false, fuzzy: false, tm: false, nt: false, mt: false, no_match: false },
   sort: 'none',
 }
@@ -168,6 +170,10 @@ const JobTranslateFilterPanel = ({ filters, onFiltersChange }: FilterPanelProps)
             </div>
             <div className="w-[150px] flex flex-col">
               <CheckboxItem label={t('jobTranslate.filterStatusFirstRepetition')} checked={filters.segmentStatus.first_repetition} onCheckedChange={() => toggleStatus('first_repetition')} />
+            </div>
+            <div className="w-[150px] flex flex-col">
+              <CheckboxItem label={t('jobTranslate.filterStatusLocked')} checked={filters.segmentStatus.locked} onCheckedChange={() => toggleStatus('locked')} />
+              <CheckboxItem label={t('jobTranslate.filterStatusNotLocked')} checked={filters.segmentStatus.not_locked} onCheckedChange={() => toggleStatus('not_locked')} />
             </div>
           </div>
         </CollapsibleContent>

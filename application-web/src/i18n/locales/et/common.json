@@ -55,6 +55,11 @@
     "filterBarSourcePlaceholder": "Filtreeri lähtetekstist",
     "filterBarTargetPlaceholder": "Filtreeri sihttekstist",
     "filterBarClear": "Tühjenda filter",
+    "replaceWithPlaceholder": "Asenda tekstiga",
+    "replace": "Asenda",
+    "replaceAll": "Asenda kõik",
+    "replaceAllConfirmTitle": "Asenda kõigis sobivates segmentides?",
+    "replaceAllConfirmDescription": "See asendab teksti kõigi praeguste filtritele vastavate lukustamata segmentide tõlkes. Seda ei saa tagasi võtta.",
 
     "statusConfirmedLabel": "Kinnitatud",
     "statusSegmentsLabel": "segmenti",
@@ -82,6 +87,11 @@
     "filterStatusEdited": "Muudetud",
     "filterStatusNotEdited": "Muutmata",
     "filterStatusLocked": "Lukustatud",
+    "segmentLocked": "Segment on lukustatud — klõpsa avamiseks",
+    "segmentUnlocked": "Segment on lukustamata — klõpsa lukustamiseks",
+    "unlockConfirmTitle": "Kas avada segmendi lukk?",
+    "unlockConfirmDescription": "See segment lukustati, kuna see on 101% tõlkemälu vaste. Luku avamine lubab segmenti muuta ja üle kirjutada.",
+    "unlockConfirmAction": "Ava lukk",
     "filterStatusNotLocked": "Lukustamata",
     "filterStatusResolvedComments": "Lahendatud kommentaarid",
     "filterStatusNotResolved": "Lahendamata",
@@ -126,7 +136,10 @@
     "suggestionProviderLabel": "Pakkuja",
     "suggestionNameLabel": "Nimi",
     "suggestionSourceContextBeforeLabel": "Eelnev lähtekontekst",
-    "suggestionSourceContextAfterLabel": "Järgnev lähtekontekst"
+    "suggestionSourceContextAfterLabel": "Järgnev lähtekontekst",
+    "suggestionCreatedLabel": "Loodud",
+    "suggestionUpdatedLabel": "Uuendatud",
+    "suggestionDiffLabel": "Erinevus otsitud tekstist"
   },
   "common": {
     "close": "Sulge",
