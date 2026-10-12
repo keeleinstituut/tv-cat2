@@ -78,7 +78,8 @@ class SuggestionController extends Controller
             ->setProviders($params->get('providers'))
             ->setContextBefore($contextBefore)
             ->setContextAfter($contextAfter)
-            ->setLimit($params->get('limit'));
+            ->setLimit($params->get('limit'))
+            ->setDataset($params->get('dataset'));
 
         if (!empty($projectTmIds)) {
             $options->setTranslationMemoryIds($projectTmIds);

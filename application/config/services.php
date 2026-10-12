@@ -56,4 +56,10 @@ return [
         'base_url' => env('MATECAT_FILTERS_BASE_URL'),
     ],
 
+    'ekilex' => [
+        'base_url'  => env('EKILEX_BASE_URL', 'https://ekilex.ee/api'),
+        'api_key'   => env('EKILEX_API_KEY'),
+        'cache_ttl' => env('EKILEX_CACHE_TTL', 3600),
+    ],
+
 ];

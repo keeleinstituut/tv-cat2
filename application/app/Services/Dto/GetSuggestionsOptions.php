@@ -10,6 +10,7 @@ class GetSuggestionsOptions
     public ?array $translationMemoryIds = [];
     public ?array $providers = null;
     public ?int $limit = null;
+    public ?string $dataset = null;
 
     /** @var BatchSuggestionQuery[] */
     public array $queries = [];
@@ -95,6 +96,12 @@ class GetSuggestionsOptions
     public function setLimit(?int $limit): self
     {
         $this->limit = $limit;
+        return $this;
+    }
+
+    public function setDataset(?string $dataset): self
+    {
+        $this->dataset = $dataset;
         return $this;
     }
 }

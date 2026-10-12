@@ -16,6 +16,7 @@ class SuggestionService
             // 'mt' => fn () => LibreTranslateService::translateSegments($options),
             // 'nt' => fn () => NoTranslateService::getSuggestions($options),
             'tm' => fn () => InternalTranslationMemoryService::getSuggestions($options),
+            'ekilex' => fn () => EkilexService::getSuggestions($options),
         ];
 
         return collect($providerFunctions)
