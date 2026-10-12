@@ -21,6 +21,8 @@ class Job extends Model implements HasMedia
     public const STATUS_FAILED = 'failed';
 
     public const TARGET_FILE_COLLECTION = 'target';
+    // bilingual XLIFF export, generated on download
+    public const XLIFF_FILE_COLLECTION = 'xliff';
 
 
     protected $fillable = [
@@ -37,6 +39,10 @@ class Job extends Model implements HasMedia
         $this
             ->addMediaCollection(self::TARGET_FILE_COLLECTION)
             ->singleFile();
+
+        $this
+            ->addMediaCollection(self::XLIFF_FILE_COLLECTION)
+            ->singleFile();
     }
 
     public function project() {
@@ -50,6 +56,11 @@ class Job extends Model implements HasMedia
     public function sourceFileCollection()
     {
         return $this->media()->where('collection_name', self::SOURCE_FILE_COLLECTION);
+    }
+
+    public function xliffFileCollection()
+    {
+        return $this->media()->where('collection_name', self::XLIFF_FILE_COLLECTION);
     }
 
     public function targetFileCollection()

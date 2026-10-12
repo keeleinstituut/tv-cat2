@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Http\Requests\JobDownloadRequest;
+use App\Jobs\ExportXliffJob;
 use App\Jobs\MergeSegmentsJob;
 use App\Models\Job;
 use Spatie\MediaLibrary\Support\MediaStream;
@@ -25,6 +26,9 @@ class DownloadController extends Controller
                 case 'target':
                     MergeSegmentsJob::dispatchSync($job);
                     return $job->targetFileCollection->first();
+                case 'xliff':
+                    ExportXliffJob::dispatchSync($job);
+                    return $job->xliffFileCollection->first();
             }
         });
 
