@@ -21,7 +21,7 @@ use Throwable;
  */
 class ReimportJobs extends Command
 {
-    protected $signature = 'jobs:reimport
+    protected $signature = 'app:reimport-jobs
         {--job=* : Only these job ids (default: every job without catto-filters segment ids)}
         {--tm : Also bring the text of translation memory entries into the segment text form}
         {--dry-run : Report what would change and change nothing}';
