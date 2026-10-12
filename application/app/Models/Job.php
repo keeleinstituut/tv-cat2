@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,8 +15,10 @@ class Job extends Model implements HasMedia
     use InteractsWithMedia;
 
     public const SOURCE_FILE_COLLECTION = 'source';
-    public const XLIFF_FILE_COLLECTION = 'xliff';
-    public const TARGET_XLIFF_FILE_COLLECTION = 'target-xliff';
+
+    public const STATUS_PROCESSING = 'processing';
+    public const STATUS_READY = 'ready';
+    public const STATUS_FAILED = 'failed';
 
     public const TARGET_FILE_COLLECTION = 'target';
 
@@ -27,22 +28,10 @@ class Job extends Model implements HasMedia
         'project_id',
     ];
 
-    protected $casts = [
-        'xliff_parsed' => AsArrayObject::class,
-    ];
-
     public function registerMediaCollections(): void
     {
         $this
             ->addMediaCollection(self::SOURCE_FILE_COLLECTION)
-            ->singleFile();
-
-        $this
-            ->addMediaCollection(self::XLIFF_FILE_COLLECTION)
-            ->singleFile();
-
-        $this
-            ->addMediaCollection(self::TARGET_XLIFF_FILE_COLLECTION)
             ->singleFile();
 
         $this
@@ -61,16 +50,6 @@ class Job extends Model implements HasMedia
     public function sourceFileCollection()
     {
         return $this->media()->where('collection_name', self::SOURCE_FILE_COLLECTION);
-    }
-
-    public function xliffFileCollection()
-    {
-        return $this->media()->where('collection_name', self::XLIFF_FILE_COLLECTION);
-    }
-
-    public function targetXliffFileCollection()
-    {
-        return $this->media()->where('collection_name', self::TARGET_XLIFF_FILE_COLLECTION);
     }
 
     public function targetFileCollection()

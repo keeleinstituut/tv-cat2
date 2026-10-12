@@ -44,8 +44,7 @@ class SegmentLockTest extends TestCase
             'position' => $position,
             'source'   => $source,
             'target'   => null,
-            'xliff_internal_id' => "tu-$position",
-            'xliff_mrk_id'      => "mrk-$position",
+            'filter_segment_id' => "tu$position#0",
         ], $attrs)))->save();
     }
 

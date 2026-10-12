@@ -24,11 +24,10 @@ class JobResource extends JsonResource
             'source_file' => MediaResource::make($this->whenLoaded('sourceFileCollection', function () {
                 return $this->sourceFileCollection->first();
             })),
-            'xliff_file' => MediaResource::make($this->whenLoaded('xliffFileCollection', function () {
-                return $this->xliffFileCollection->first();
-            })),
             'provider' => 'John Smith',
-            'status' => 'New',
+            // processing while the file is read, ready, or failed (with the reason in error)
+            'status' => $this->status,
+            'error' => $this->error,
             'confirmed' => 6,
         ];
     }

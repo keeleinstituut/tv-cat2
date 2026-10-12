@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\SegmentText;
 use App\Http\Requests\SegmentBulkUpdateRequest;
 use App\Http\Requests\SegmentIndexRequest;
 use App\Http\Requests\SegmentReplaceRequest;
@@ -224,7 +225,7 @@ class SegmentController extends Controller
 
             $count = 0;
             foreach ($segments as $segment) {
-                $newTarget = str_replace($target, $replaceTarget, $segment->target);
+                $newTarget = str_replace(SegmentText::escape($target), SegmentText::escape($replaceTarget), $segment->target);
                 if ($newTarget === $segment->target) {
                     continue;
                 }
@@ -239,12 +240,13 @@ class SegmentController extends Controller
 
     private function applyFilters(Builder $query, Collection $params): Builder
     {
+        // Typed text is compared with stored segment text, where & < > are escaped
         if ($param = $params->get('source')) {
-            $query = $query->where('source', 'ilike', "%$param%");
+            $query = $query->where('source', 'ilike', SegmentText::likePattern($param));
         }
 
         if ($param = $params->get('target_filter')) {
-            $query = $query->where('target', 'ilike', "%$param%");
+            $query = $query->where('target', 'ilike', SegmentText::likePattern($param));
         }
 
         $hasEmpty           = $params->get('filter_empty');

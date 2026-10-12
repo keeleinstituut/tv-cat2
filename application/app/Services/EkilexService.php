@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\SegmentText;
 use App\Services\Dto\GetSuggestionsOptions;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Pool;
@@ -54,7 +55,8 @@ class EkilexService
      */
     public static function getSuggestions(GetSuggestionsOptions $options): array
     {
-        $q = trim($options->getQ());
+        // A terminology search takes the text a person reads, not the segment's markup
+        $q = trim(SegmentText::plain($options->getQ()));
         $sourceLang = EkilexLanguageMapper::toEkilex($options->sourceLocale);
         $targetLang = EkilexLanguageMapper::toEkilex($options->targetLocale);
 

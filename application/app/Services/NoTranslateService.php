@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use App\Services\Dto\GetSuggestionsOptions;
+use App\Support\SegmentText;
 
 
 class NoTranslateService
@@ -16,8 +17,10 @@ class NoTranslateService
 
     public static function getSuggestions(GetSuggestionsOptions $options) {
         $q = $options->getQ();
+        // The rules look at the text a person reads; the suggestion keeps the segment's formatting.
+        $plain = SegmentText::plain($q);
         foreach (static::$REGEX_LIST as $re) {
-            if (preg_match($re, $q)) {
+            if (preg_match($re, $plain)) {
                 return [
                     [
                         'provider' => [

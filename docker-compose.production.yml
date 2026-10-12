@@ -3,8 +3,12 @@ version: "3.8"
 services:
   app:
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      catto-filters:
+        condition: service_healthy
     build:
       context: .
       dockerfile: Dockerfile
