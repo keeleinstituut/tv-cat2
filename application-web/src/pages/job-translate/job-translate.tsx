@@ -121,6 +121,8 @@ const JobTranslatePage = () => {
     return s + p + o
   }, [advancedFilters])
 
+  const hasActiveFilter = Boolean(filterFormValues.source || filterFormValues.target) || activeAdvancedFilterCount > 0
+
   const advancedFilterParams = useMemo(() => {
     const advancedParams: Record<string, any> = {}
     const { segmentStatus, pretranslated, sort } = advancedFilters
@@ -360,9 +362,6 @@ const JobTranslatePage = () => {
         </div>
       </header>
 
-      {jobStatus === 'processing' && (
-        <div className="shrink-0 border-b bg-muted px-6 py-2 text-sm">{t('jobTranslate.jobProcessing')}</div>
-      )}
       {jobStatus === 'failed' && (
         <div className="shrink-0 border-b bg-destructive/10 px-6 py-2 text-sm text-destructive">
           {t('jobTranslate.jobFailed')}{jobQuery.data?.data.error ? `: ${jobQuery.data.data.error}` : ''}
@@ -495,6 +494,8 @@ const JobTranslatePage = () => {
             onToggleLock={handleToggleLock}
             showHiddenChars={showHiddenChars}
             isOverwriteMode={isOverwriteMode}
+            isJobProcessing={jobStatus === 'processing'}
+            hasActiveFilter={hasActiveFilter}
           />
 
           <div className="flex border-t">
@@ -513,18 +514,20 @@ const JobTranslatePage = () => {
         </div>
 
         <Tabs value={activeRightTab} onValueChange={setActiveRightTab} className="flex-2 border-l flex flex-row gap-0">
-          <TabsContent value="cat">
+          <TabsContent value="cat" forceMount className="data-[state=inactive]:hidden">
             <div className="h-full flex flex-col">
               <span className="font-bold p-2 border-b">{t('jobTranslate.rightPanelCatTab')}</span>
 
               {!state.currentSegment ? (
                 <div className="flex flex-1 items-center justify-center">
-                  <span>{t('jobTranslate.rightPanelSelectSegment')}</span>
+                  <span className="text-muted-foreground text-sm">{t('jobTranslate.rightPanelSelectSegment')}</span>
                 </div>
               ) : (
                 <SuggestionsList
                   data={suggestionsQuery.data?.data || []}
                   query={suggestionsQuery.data?.meta?.query}
+                  isLoading={suggestionsQuery.isLoading}
+                  emptyText={t('jobTranslate.rightPanelNoSuggestions')}
                   onSelect={(suggestion) => {
                     if (state.currentSegment) {
                       handleSegmentChange(state.currentSegment, { target: suggestion.target })
@@ -534,7 +537,7 @@ const JobTranslatePage = () => {
               )}
             </div>
           </TabsContent>
-          <TabsContent value="text_search">
+          <TabsContent value="text_search" forceMount className="data-[state=inactive]:hidden">
             <div className="h-full flex flex-col">
               <span className="font-bold p-2 border-b">{t('jobTranslate.rightPanelConcordanceSearch')}</span>
               <div className="p-2">
@@ -543,16 +546,21 @@ const JobTranslatePage = () => {
                   {...concordanceSearchForm.register('source')}
                 />
               </div>
-              {!concordanceSearchSuggestionsQuery.data ? (
+              {!concordanceSearchFormValues.source ? (
                 <div className="flex flex-1 items-center justify-center">
-                  <span>{t('jobTranslate.rightPanelEnterTermsToSearch')}</span>
+                  <span className="text-muted-foreground text-sm">{t('jobTranslate.rightPanelEnterTermsToSearch')}</span>
                 </div>
               ) : (
-                <SuggestionsList data={concordanceSearchSuggestionsQuery.data.data} query={concordanceSearchSuggestionsQuery.data.meta?.query} />
+                <SuggestionsList
+                  data={concordanceSearchSuggestionsQuery.data?.data || []}
+                  query={concordanceSearchSuggestionsQuery.data?.meta?.query}
+                  isLoading={concordanceSearchSuggestionsQuery.isLoading}
+                  emptyText={t('jobTranslate.rightPanelNoResults')}
+                />
               )}
             </div>
           </TabsContent>
-          <TabsContent value="ekilex">
+          <TabsContent value="ekilex" forceMount className="data-[state=inactive]:hidden">
             <div className="h-full flex flex-col">
               <span className="font-bold p-2 border-b">{t('jobTranslate.rightPanelEkilexSearch')}</span>
               <div className="p-2 flex flex-col gap-2">
@@ -572,16 +580,17 @@ const JobTranslatePage = () => {
                   </SelectContent>
                 </Select>
               </div>
-              {!ekilexSuggestionsQuery.data ? (
+              {!ekilexSearchFormValues.term ? (
                 <div className="flex flex-1 items-center justify-center">
-                  <span>{t('jobTranslate.rightPanelEkilexEnterTerm')}</span>
-                </div>
-              ) : ekilexSuggestionsQuery.data.data.length === 0 ? (
-                <div className="flex flex-1 items-center justify-center">
-                  <span>{t('jobTranslate.rightPanelEkilexNoResults')}</span>
+                  <span className="text-muted-foreground text-sm">{t('jobTranslate.rightPanelEkilexEnterTerm')}</span>
                 </div>
               ) : (
-                <SuggestionsList data={ekilexSuggestionsQuery.data.data} query={ekilexSuggestionsQuery.data.meta?.query} />
+                <SuggestionsList
+                  data={ekilexSuggestionsQuery.data?.data || []}
+                  query={ekilexSuggestionsQuery.data?.meta?.query}
+                  isLoading={ekilexSuggestionsQuery.isLoading}
+                  emptyText={t('jobTranslate.rightPanelEkilexNoResults')}
+                />
               )}
             </div>
           </TabsContent>

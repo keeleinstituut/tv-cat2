@@ -1,4 +1,5 @@
-import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Table,TableBody, TableCell, TableRow } from "@/components/ui/table"
 import type { Suggestion } from "@/lib/api/suggestions"
 import { diffWords } from "diff"
 import { map } from "lodash"
@@ -11,9 +12,17 @@ import SuggestionBadge from "./suggestion-badge"
 // The text a person reads, so the diff does not show tags or entities
 const stripTags = (html: string) => plainText(html)
 
-const SuggestionsList = (props: { data: Suggestion[], query?: string, onSelect?: (data: Suggestion) => void }) => {
+type SuggestionsListProps = {
+  data: Suggestion[]
+  query?: string
+  onSelect?: (data: Suggestion) => void
+  isLoading: boolean
+  emptyText: string
+}
+
+const SuggestionsList = (props: SuggestionsListProps) => {
   const { t, i18n } = useTranslation()
-  const { data, query, onSelect } = props
+  const { data, query, onSelect, isLoading, emptyText } = props
   const formatDateTime = (iso: string) =>
     new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
   const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null)
@@ -31,7 +40,20 @@ const SuggestionsList = (props: { data: Suggestion[], query?: string, onSelect?:
   return (
     <div className="flex flex-col flex-1">
       <div className="flex-1 overflow-y-auto no-scrollbar [contain:strict]">
-        {map(data, (suggestion, i) => (
+        {isLoading && Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex flex-row border-b text-xs">
+            <span className="w-8 pt-2 flex justify-center"><Skeleton className="h-4 w-4" /></span>
+            <div className="flex-1 p-2"><Skeleton className="h-4 w-full" /></div>
+            <span className="w-10 p-2"><Skeleton className="h-4 w-full" /></span>
+            <div className="flex-1 p-2"><Skeleton className="h-4 w-full" /></div>
+          </div>
+        ))}
+        {!isLoading && data.length === 0 && (
+          <div className="h-full flex items-center justify-center">
+            <span className="text-muted-foreground text-sm">{emptyText}</span>
+          </div>
+        )}
+        {!isLoading && map(data, (suggestion, i) => (
           <div
             key={i}
             className="flex flex-row border-b text-xs"

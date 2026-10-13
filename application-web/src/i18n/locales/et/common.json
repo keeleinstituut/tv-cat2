@@ -34,7 +34,9 @@
     "confirmDelete": "Kustuta"
   },
   "jobTranslate": {
-    "jobProcessing": "Faili loetakse, segmendid ilmuvad varsti...",
+    "jobProcessing": "Tööd luuakse, faili loetakse...",
+    "noSegmentsMatchFilter": "Otsingule vastavaid segmente ei leitud",
+    "noSegmentsFound": "Selles töös pole segmente",
     "jobFailed": "Faili lugemine ebaõnnestus",
     "toolbarBold": "Rasvane",
     "toolbarItalic": "Kaldkiri",
@@ -81,6 +83,8 @@
     "rightPanelEkilexAllDatasets": "Kõik sõnakogud",
     "rightPanelEkilexEnterTerm": "Sisesta Ekilexis otsitav termin",
     "rightPanelEkilexNoResults": "Termineid ei leitud",
+    "rightPanelNoSuggestions": "Soovitusi ei leitud",
+    "rightPanelNoResults": "Tulemusi ei leitud",
     "rightPanelComments": "Kommentaarid",
 
     "filterNotAvailable": "Pole selles versioonis saadaval",

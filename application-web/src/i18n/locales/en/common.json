@@ -34,7 +34,9 @@
     "confirmDelete": "Delete"
   },
   "jobTranslate": {
-    "jobProcessing": "The file is being read, segments will appear shortly...",
+    "jobProcessing": "Creating job, reading the file...",
+    "noSegmentsMatchFilter": "No segments match your search",
+    "noSegmentsFound": "This job has no segments",
     "jobFailed": "Reading the file failed",
     "toolbarBold": "Bold",
     "toolbarItalic": "Italic",
@@ -81,6 +83,8 @@
     "rightPanelEkilexAllDatasets": "All datasets",
     "rightPanelEkilexEnterTerm": "Enter a term to search in Ekilex",
     "rightPanelEkilexNoResults": "No terms found",
+    "rightPanelNoSuggestions": "No suggestions found",
+    "rightPanelNoResults": "No results found",
     "rightPanelComments": "Comments",
 
     "filterNotAvailable": "Not available in this version",
