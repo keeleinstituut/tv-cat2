@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\SegmentText;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use App\Services\Dto\GetSuggestionsOptions;
@@ -400,13 +401,14 @@ class InternalTranslationMemoryService
                 return [
                     'id' => Str::uuid()->toString(),
                     'translation_memory_id' => $translationMemoryId,
-                    'source' => $get( 'source.segment'),
-                    'source_context_before' => $get( ['source.meta.context_before', 'source.meta.context_prev']),
-                    'source_context_after' => $get( ['source.meta.context_after', 'source.meta.context_next']),
+                    // TMX from other tools has plain text (or its own markup); bring it into the segment text form
+                    'source' => SegmentText::normalize($get( 'source.segment')),
+                    'source_context_before' => SegmentText::normalize($get( ['source.meta.context_before', 'source.meta.context_prev'])),
+                    'source_context_after' => SegmentText::normalize($get( ['source.meta.context_after', 'source.meta.context_next'])),
 
-                    'target' => $get( 'target.segment'),
-                    'target_context_before' => $get( ['target.meta.context_before', 'target.meta.context_prev']),
-                    'target_context_after' => $get( ['target.meta.context_after', 'target.meta.context_next']),
+                    'target' => SegmentText::normalize($get( 'target.segment')),
+                    'target_context_before' => SegmentText::normalize($get( ['target.meta.context_before', 'target.meta.context_prev'])),
+                    'target_context_after' => SegmentText::normalize($get( ['target.meta.context_after', 'target.meta.context_next'])),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];

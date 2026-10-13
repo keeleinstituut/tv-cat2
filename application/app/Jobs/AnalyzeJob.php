@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Support\SegmentText;
 use App\Models\Job;
 use App\Models\JobAnalysis;
 use App\Services\Dto\GetSuggestionsOptions;
@@ -73,7 +74,7 @@ class AnalyzeJob implements ShouldQueue
         ];
 
         foreach ($segments as $i => $segment) {
-            $plain = strip_tags($segment->source);
+            $plain = SegmentText::plain($segment->source);
             $words = str_word_count($plain);
             $chars = mb_strlen($plain);
 

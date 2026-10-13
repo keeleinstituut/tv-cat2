@@ -50,8 +50,7 @@ class ProjectFromTranslationMemorySegmentsSeeder extends Seeder
                     'id' => Str::uuid()->toString(),
                     'job_id' => $job->id,
                     'position' => $i,
-                    'xliff_internal_id' => "$i",
-                    'xliff_mrk_id' => '0',
+                    'filter_segment_id' => "tu$i#0",
                     'source' => $sourceObj->source,
                 ];
             })->toArray();

@@ -3,13 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Models\TranslationMemorySegment;
-use App\Services\XmlInlineTagEncoder;
 use Illuminate\Console\Command;
 
 class DecodeTmSegments extends Command
 {
     protected $signature = 'app:decode-tm-segments';
     protected $description = 'Decode HTML-encoded formatting tags in TranslationMemorySegment fields (idempotent)';
+
+    private const TAGS = ['i', 'sup', 'b', 'sub', 'strong', 'em'];
 
     private array $fields = [
         'source',
@@ -32,7 +33,7 @@ class DecodeTmSegments extends Command
                     if ($segment->$field === null) {
                         continue;
                     }
-                    $decoded = XmlInlineTagEncoder::decode($segment->$field);
+                    $decoded = self::decode($segment->$field);
                     if ($decoded !== $segment->$field) {
                         $segment->$field = $decoded;
                         $dirty = true;
@@ -47,5 +48,18 @@ class DecodeTmSegments extends Command
         });
 
         $this->info("Done. Updated {$updated} record(s).");
+    }
+
+    public static function decode(string $content): string
+    {
+        foreach (self::TAGS as $tag) {
+            $content = str_replace("&lt;{$tag}&gt;", "<{$tag}>", $content);
+            $content = str_replace("&lt;/{$tag}&gt;", "</{$tag}>", $content);
+            // half-encoded edge cases (e.g. <sup&gt;)
+            $content = str_replace("<{$tag}&gt;", "<{$tag}>", $content);
+            $content = str_replace("</{$tag}&gt;", "</{$tag}>", $content);
+        }
+
+        return $content;
     }
 }

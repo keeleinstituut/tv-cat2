@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\SegmentText;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -48,6 +49,8 @@ class LibreTranslateService
                 'q'      => $chunk,
                 'source' => $src,
                 'target' => $tgt,
+                // Segment text is a small HTML subset (<b>, <sup>, &amp;, ...); as html the tags and entities survive
+                'format' => 'html',
             ]);
 
             $body = $response->json();
@@ -56,7 +59,7 @@ class LibreTranslateService
             }
 
             foreach ($chunk as $i => $source) {
-                $target = $body['translatedText'][$i];
+                $target = SegmentText::normalize($body['translatedText'][$i]);
                 $result[$source] = self::buildTranslation($source, $target);
                 Cache::forever(self::cacheKey($source, $src, $tgt), $target);
             }
@@ -76,7 +79,7 @@ class LibreTranslateService
 
     private static function cacheKey(string $source, string $src, string $tgt): string
     {
-        return "libretranslate:{$src}:{$tgt}:" . md5($source);
+        return "libretranslate:html:{$src}:{$tgt}:" . md5($source);
     }
 
     private static function transformLocale($locale)

@@ -18,8 +18,7 @@ class Segment extends Model
         'confirmed',
         'locked',
         'position',
-        'xliff_mrk_id',
-        'xliff_internal_id',
+        'filter_segment_id',
     ];
 
     protected $casts = [

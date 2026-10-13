@@ -25,16 +25,11 @@ class ProjectSeeder extends Seeder
                     ->count(2)
                     ->has(
                         Media::factory()
-                            ->count(2)
-                            ->sequence([
+                            ->count(1)
+                            ->state([
                                 'name' => 'seeded-file',
                                 'file_name' => 'seeded-file.txt',
                                 'collection_name' => 'source',
-                            ],
-                            [
-                                'name' => 'seeded-file.txt',
-                                'file_name' => 'seeded-file.txt.xliff',
-                                'collection_name' => 'xliff',
                             ])
                     )
                     ->has(
@@ -43,8 +38,7 @@ class ProjectSeeder extends Seeder
                             ->state(new Sequence(function ($seq) {
                                 return [
                                     'position' => $seq->index,
-                                    'xliff_internal_id' => "$seq->index",
-                                    'xliff_mrk_id' => '0',
+                                    'filter_segment_id' => "tu$seq->index#0",
                                 ];
                             }))
                     )

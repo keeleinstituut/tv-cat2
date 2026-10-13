@@ -9,3 +9,12 @@ services:
       - 6001:8000
     volumes:
       - ./application:/app:cached
+
+  catto-filters:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.development
+    ports:
+      - 8735:8080
+    environment:
+      - JAVA_OPTS=-Xmx1g
