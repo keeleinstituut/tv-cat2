@@ -34,9 +34,14 @@
     "confirmDelete": "Delete"
   },
   "jobTranslate": {
+    "jobProcessing": "Creating job, reading the file...",
+    "noSegmentsMatchFilter": "No segments match your search",
+    "noSegmentsFound": "This job has no segments",
+    "jobFailed": "Reading the file failed",
     "toolbarBold": "Bold",
     "toolbarItalic": "Italic",
     "toolbarUnderline": "Underline",
+    "toolbarStrikethrough": "Strikethrough",
     "toolbarSubscript": "Subscript",
     "toolbarSuperscript": "Superscript",
     "toolbarDeleteTarget": "Delete target",
@@ -73,6 +78,13 @@
     "rightPanelConcordanceSearch": "Concordance search",
     "rightPanelSearchPlaceholder": "Search...",
     "rightPanelEnterTermsToSearch": "Enter terms to search for",
+    "rightPanelEkilexSearch": "Ekilex term search",
+    "rightPanelEkilexTermPlaceholder": "Search term...",
+    "rightPanelEkilexAllDatasets": "All datasets",
+    "rightPanelEkilexEnterTerm": "Enter a term to search in Ekilex",
+    "rightPanelEkilexNoResults": "No terms found",
+    "rightPanelNoSuggestions": "No suggestions found",
+    "rightPanelNoResults": "No results found",
     "rightPanelComments": "Comments",
 
     "filterNotAvailable": "Not available in this version",
@@ -139,7 +151,11 @@
     "suggestionSourceContextAfterLabel": "Source context after",
     "suggestionCreatedLabel": "Created",
     "suggestionUpdatedLabel": "Updated",
-    "suggestionDiffLabel": "Difference from searched text"
+    "suggestionDiffLabel": "Difference from searched text",
+    "suggestionDatasetLabel": "Dataset",
+    "suggestionDefinitionLabel": "Definition",
+    "suggestionNoteLabel": "Note",
+    "suggestionSentenceLabel": "Usage example"
   },
   "common": {
     "close": "Close",

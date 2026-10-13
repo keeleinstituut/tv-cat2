@@ -109,6 +109,8 @@ Route::middleware(['auth:web,keycloak-jwt'])->group(function (): void {
             Route::get('/jobs/{job_id}/suggestions', 'indexJob');
         });
 
+    Route::get('/ekilex/datasets', [\App\Http\Controllers\EkilexController::class, 'datasets']);
+
     Route::prefix('/nectm-replacement')
         ->controller(\App\Http\Controllers\NectmReplacementController::class)
         ->group(function (): void {

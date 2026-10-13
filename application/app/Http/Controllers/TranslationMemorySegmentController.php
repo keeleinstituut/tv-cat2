@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\SegmentText;
 use App\Http\Requests\TranslationMemorySegmentIndexRequest;
 use App\Http\Requests\TranslationMemorySegmentReplaceRequest;
 use App\Http\Requests\TranslationMemorySegmentUpdateRequest;
@@ -23,11 +24,11 @@ class TranslationMemorySegmentController extends Controller
             ->where('translation_memory_id', $translationMemory->id);
 
         if ($param = $params->get('source')) {
-            $query = $query->where('source', 'ilike', "%$param%");
+            $query = $query->where('source', 'ilike', SegmentText::likePattern($param));
         }
 
         if ($param = $params->get('target')) {
-            $query = $query->where('target', 'ilike', "%$param%");
+            $query = $query->where('target', 'ilike', SegmentText::likePattern($param));
         }
 
         // $query = $query->orderBy('source', 'asc');
@@ -57,17 +58,17 @@ class TranslationMemorySegmentController extends Controller
             ->where('translation_memory_id', $translationMemory->id);
 
         if ($source) {
-            $query = $query->where('source', 'ilike', "%$source%");
+            $query = $query->where('source', 'ilike', SegmentText::likePattern($source));
         }
 
         if ($target) {
-            $query = $query->where('target', 'ilike', "%$target%");
+            $query = $query->where('target', 'ilike', SegmentText::likePattern($target));
         }
 
         $segments = $query->get();
 
         foreach ($segments as $segment) {
-            $segment->target = str_replace($target, $replaceTarget, $segment->target);
+            $segment->target = str_replace(SegmentText::escape($target), SegmentText::escape($replaceTarget), $segment->target);
             $segment->save();
         }
 

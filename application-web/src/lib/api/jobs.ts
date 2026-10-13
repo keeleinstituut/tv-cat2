@@ -5,14 +5,14 @@ export type Job = {
   id: string
   project_id: string
   target_locale: string
-  status: string
+  status: 'processing' | 'ready' | 'failed'
+  error: string | null
   confirmed: string
   created_at: string
   updated_at: string
 
   project: Project
   source_file: File
-  xliff_file: File
 }
 
 export type File = {

@@ -3,7 +3,8 @@ version: "3.8"
 services:
   app:
     depends_on:
-      - postgres
+      postgres:
+        condition: service_started
 
   postgres:
     image: postgres:latest
@@ -17,12 +18,6 @@ services:
 
   redis:
     image: redis:latest
-
-  matecat-filters:
-    build:
-      context: ./docker/matecat-filters
-    ports:
-      - 8734:8734
 
   # libretranslate:
   #   container_name: libretranslate

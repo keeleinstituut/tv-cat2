@@ -52,8 +52,16 @@ return [
         'base_url' => env('LIBRETRANSLATE_BASE_URL'),
     ],
 
-    'matecat_filters' => [
-        'base_url' => env('MATECAT_FILTERS_BASE_URL'),
+    // catto-filters: reads translatable text out of files and writes translations back
+    'filters' => [
+        'base_url' => env('FILTERS_BASE_URL', 'http://catto-filters:8080'),
+        'timeout' => (int) env('FILTERS_TIMEOUT', 600),
+    ],
+
+    'ekilex' => [
+        'base_url'  => env('EKILEX_BASE_URL', 'https://ekilex.ee/api'),
+        'api_key'   => env('EKILEX_API_KEY'),
+        'cache_ttl' => env('EKILEX_CACHE_TTL', 3600),
     ],
 
 ];

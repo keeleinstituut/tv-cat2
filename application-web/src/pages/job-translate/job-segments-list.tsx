@@ -1,10 +1,11 @@
 import VirtualizedList from "@/components/pudinad/virtualized-list"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { DataPaginationResponse } from "@/lib/api/projects"
 import type { Segment } from "@/lib/api/segments"
 import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query"
 import type { VirtualItem, Virtualizer } from "@tanstack/react-virtual"
 import { last } from "lodash"
-import { Circle, CircleCheck, Lock, LockOpen, Repeat, Repeat1 } from "lucide-react"
+import { Circle, CircleCheck, LoaderCircle, Lock, LockOpen, Repeat, Repeat1 } from "lucide-react"
 import { useCallback, useEffect, useState, type JSX } from "react"
 import { useTranslation } from "react-i18next"
 import SegmentEditInput from "./job-segment-edit-input"
@@ -53,11 +54,13 @@ type JobSegmentsListProps = {
   onToggleLock: (segment: Segment) => void
   showHiddenChars: boolean
   isOverwriteMode: boolean
+  isJobProcessing: boolean
+  hasActiveFilter: boolean
 }
 
 const JobSegmentsList = (props: JobSegmentsListProps) => {
   const { t } = useTranslation()
-  const { segmentsQuery, editedSegments, currentSegmentId, onSegmentClick, onSegmentChange, onToggleLock, showHiddenChars, isOverwriteMode } = props
+  const { segmentsQuery, editedSegments, currentSegmentId, onSegmentClick, onSegmentChange, onToggleLock, showHiddenChars, isOverwriteMode, isJobProcessing, hasActiveFilter } = props
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [anchorId, setAnchorId] = useState<string | null>(null)
@@ -132,7 +135,8 @@ const JobSegmentsList = (props: JobSegmentsListProps) => {
         ref={virtualizer.measureElement}
       >
         <div
-          className={classNames("flex border-b cursor-pointer select-none", {
+          className={classNames("flex border-b", {
+            "cursor-pointer select-none": !isLoaderRow,
             "bg-blue-50 dark:bg-blue-950/40": isActive,
             "bg-accent": !isActive && isSelected,
           })}
@@ -206,13 +210,40 @@ const JobSegmentsList = (props: JobSegmentsListProps) => {
           {t('jobTranslate.allSegmentsSelected', { count: totalCount })}
         </div>
       )}
-      <VirtualizedList
-        className="flex-1 no-scrollbar overflow-y-auto [contain:strict]"
-        count={segmentsQuery.hasNextPage ? allRows.length + 1 : allRows.length}
-        renderItem={renderSegmentRow}
-        onRenderedVirtualItemsChange={onRenderedVirtualItemsChange}
-        overscan={5}
-      />
+      {isJobProcessing || segmentsQuery.isLoading ? (
+        <div className="relative flex-1 no-scrollbar overflow-y-auto [contain:strict]">
+          {isJobProcessing && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60">
+              <div className="flex items-center gap-2 rounded-md border bg-background px-4 py-3 text-sm shadow-sm">
+                <LoaderCircle size={16} className="animate-spin text-muted-foreground" />
+                {t('jobTranslate.jobProcessing')}
+              </div>
+            </div>
+          )}
+          {Array.from({ length: 15 }).map((_, i) => (
+            <div key={i} className="flex border-b">
+              <span className="w-[70px] p-2"><Skeleton className="h-4 w-6" /></span>
+              <div className="basis-1/2 grow-0 shrink-1 p-2"><Skeleton className="h-4 w-full" /></div>
+              <div className="basis-1/2 grow-0 shrink-1 p-2"><Skeleton className="h-4 w-full" /></div>
+              <span className="w-[232px] self-stretch" />
+            </div>
+          ))}
+        </div>
+      ) : allRows.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <span className="text-muted-foreground text-sm">
+            {t(hasActiveFilter ? 'jobTranslate.noSegmentsMatchFilter' : 'jobTranslate.noSegmentsFound')}
+          </span>
+        </div>
+      ) : (
+        <VirtualizedList
+          className="flex-1 no-scrollbar overflow-y-auto [contain:strict]"
+          count={segmentsQuery.hasNextPage ? allRows.length + 1 : allRows.length}
+          renderItem={renderSegmentRow}
+          onRenderedVirtualItemsChange={onRenderedVirtualItemsChange}
+          overscan={5}
+        />
+      )}
     </div>
   )
 }

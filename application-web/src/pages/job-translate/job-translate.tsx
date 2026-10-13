@@ -2,9 +2,10 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { getJob } from "@/lib/api/jobs"
+import { escapeText, plainText } from "@/lib/segment-text"
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query"
 import { useParams } from "react-router"
-import { Bold, Italic, Underline, Subscript, Superscript, Cat, TextSearch, SlidersHorizontal, Replace, ChevronLeft, ChevronRight } from "lucide-react"
+import { Bold, Italic, Underline, Strikethrough, Subscript, Superscript, Cat, TextSearch, SlidersHorizontal, Replace, ChevronLeft, ChevronRight, BookOpen } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
@@ -16,6 +17,8 @@ import { useForm, useWatch } from "react-hook-form"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 import { getJobSuggestions } from "@/lib/api/suggestions"
+import { getEkilexDatasets } from "@/lib/api/ekilex"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import JobSegmentsList from "./job-segments-list"
 import SuggestionsList from "./job-suggestions-list"
 import JobTranslateFilterPanel, { type AdvancedFilterState, advancedFilterDefaultState } from "./job-translate-filter-panel"
@@ -30,6 +33,8 @@ const filterFormDefaultValues = {
 const concordanceSearchFormDefaultValues = {
   source: '',
 }
+
+const ALL_EKILEX_DATASETS = '__all__'
 
 
 type Action = {
@@ -51,7 +56,6 @@ const reducerInitialState: State = {
 }
 
 const reducer = (state: State, action: Action): State => {
-  console.log(action)
   switch (action.type) {
     case 'SET_CURRENT_SEGMENT':
       return {
@@ -97,6 +101,13 @@ const JobTranslatePage = () => {
 
   const concordanceSearchFormValues = useDebounce(useWatch({ control: concordanceSearchForm.control }), 300)
 
+  const ekilexSearchForm = useForm({
+    defaultValues: { term: '' },
+  })
+
+  const ekilexSearchFormValues = useDebounce(useWatch({ control: ekilexSearchForm.control }), 300)
+  const [ekilexDataset, setEkilexDataset] = useState(ALL_EKILEX_DATASETS)
+
   const filterForm = useForm({
     defaultValues: filterFormDefaultValues,
   })
@@ -109,6 +120,8 @@ const JobTranslatePage = () => {
     const o = advancedFilters.sort !== 'none' ? 1 : 0
     return s + p + o
   }, [advancedFilters])
+
+  const hasActiveFilter = Boolean(filterFormValues.source || filterFormValues.target) || activeAdvancedFilterCount > 0
 
   const advancedFilterParams = useMemo(() => {
     const advancedParams: Record<string, any> = {}
@@ -148,6 +161,7 @@ const JobTranslatePage = () => {
 
     return omitBy({
       segment_id: state.currentSegment?.id,
+      providers: ['tm']
     }, fn)
   }, [state.currentSegment])
 
@@ -158,10 +172,21 @@ const JobTranslatePage = () => {
     }
   }, [concordanceSearchFormValues])
 
+  const ekilexSuggestionsQueryParams = useMemo(() => {
+    return {
+      q: ekilexSearchFormValues.term,
+      dataset: ekilexDataset === ALL_EKILEX_DATASETS ? undefined : ekilexDataset,
+      providers: ['ekilex']
+    }
+  }, [ekilexSearchFormValues, ekilexDataset])
+
   const jobQuery = useQuery({
     queryKey: ['job', job_id],
-    queryFn: getJob
+    queryFn: getJob,
+    // The file is read in the background after the job is created
+    refetchInterval: (query) => query.state.data?.data.status === 'processing' ? 3000 : false,
   })
+  const jobStatus = jobQuery.data?.data.status
 
   const suggestionsQuery = useQuery({
     queryKey: ['job_suggestions', job_id, suggestionsQueryParam],
@@ -173,6 +198,18 @@ const JobTranslatePage = () => {
     queryKey: ['job_suggestions', job_id, concordanceSearchSuggestionsQueryParams],
     queryFn: getJobSuggestions,
     enabled: !!concordanceSearchFormValues.source,
+  })
+
+  const ekilexSuggestionsQuery = useQuery({
+    queryKey: ['job_suggestions', job_id, ekilexSuggestionsQueryParams],
+    queryFn: getJobSuggestions,
+    enabled: !!ekilexSearchFormValues.term,
+  })
+
+  const ekilexDatasetsQuery = useQuery({
+    queryKey: ['ekilex_datasets'],
+    queryFn: getEkilexDatasets,
+    staleTime: 60 * 60 * 1000,
   })
 
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -266,7 +303,8 @@ const JobTranslatePage = () => {
     if (!state.currentSegment || !filterFormValues.target) return
     const segment = state.currentSegment
     const currentTarget = state.edited[segment.id]?.target ?? segment.target ?? ''
-    handleSegmentChange(segment, { target: currentTarget.replaceAll(filterFormValues.target, replaceWith) })
+    // The typed text is compared with segment text, where & < > are escaped
+    handleSegmentChange(segment, { target: currentTarget.replaceAll(escapeText(filterFormValues.target), escapeText(replaceWith)) })
   }, [state.currentSegment, state.edited, filterFormValues.target, replaceWith, handleSegmentChange])
 
   const handleReplaceAll = useCallback(async () => {
@@ -294,8 +332,9 @@ const JobTranslatePage = () => {
     }
 
     return {
-      source_char_count: state.currentSegment?.source?.length || 0,
-      target_char_count: state.edited[state.currentSegment?.id]?.target?.length || state.currentSegment?.target?.length || 0,
+      // characters a person counts, not tags and entities
+      source_char_count: plainText(state.currentSegment?.source).length,
+      target_char_count: plainText(state.edited[state.currentSegment?.id]?.target ?? state.currentSegment?.target).length,
     }
   }, [state.currentSegment, segmentsQuery])
 
@@ -316,12 +355,18 @@ const JobTranslatePage = () => {
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{jobQuery.data?.data.xliff_file?.file_name}</BreadcrumbPage>
+                <BreadcrumbPage>{jobQuery.data?.data.source_file?.file_name}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </div>
       </header>
+
+      {jobStatus === 'failed' && (
+        <div className="shrink-0 border-b bg-destructive/10 px-6 py-2 text-sm text-destructive">
+          {t('jobTranslate.jobFailed')}{jobQuery.data?.data.error ? `: ${jobQuery.data.data.error}` : ''}
+        </div>
+      )}
 
       <div className="flex flex-1">
         <div className="flex-4 flex flex-col">
@@ -350,6 +395,14 @@ const JobTranslatePage = () => {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t('jobTranslate.toolbarUnderline')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('strikeThrough')}>
+                    <Strikethrough />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('jobTranslate.toolbarStrikethrough')}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -441,6 +494,8 @@ const JobTranslatePage = () => {
             onToggleLock={handleToggleLock}
             showHiddenChars={showHiddenChars}
             isOverwriteMode={isOverwriteMode}
+            isJobProcessing={jobStatus === 'processing'}
+            hasActiveFilter={hasActiveFilter}
           />
 
           <div className="flex border-t">
@@ -459,18 +514,20 @@ const JobTranslatePage = () => {
         </div>
 
         <Tabs value={activeRightTab} onValueChange={setActiveRightTab} className="flex-2 border-l flex flex-row gap-0">
-          <TabsContent value="cat">
+          <TabsContent value="cat" forceMount className="data-[state=inactive]:hidden">
             <div className="h-full flex flex-col">
               <span className="font-bold p-2 border-b">{t('jobTranslate.rightPanelCatTab')}</span>
 
               {!state.currentSegment ? (
                 <div className="flex flex-1 items-center justify-center">
-                  <span>{t('jobTranslate.rightPanelSelectSegment')}</span>
+                  <span className="text-muted-foreground text-sm">{t('jobTranslate.rightPanelSelectSegment')}</span>
                 </div>
               ) : (
                 <SuggestionsList
                   data={suggestionsQuery.data?.data || []}
                   query={suggestionsQuery.data?.meta?.query}
+                  isLoading={suggestionsQuery.isLoading}
+                  emptyText={t('jobTranslate.rightPanelNoSuggestions')}
                   onSelect={(suggestion) => {
                     if (state.currentSegment) {
                       handleSegmentChange(state.currentSegment, { target: suggestion.target })
@@ -480,7 +537,7 @@ const JobTranslatePage = () => {
               )}
             </div>
           </TabsContent>
-          <TabsContent value="text_search">
+          <TabsContent value="text_search" forceMount className="data-[state=inactive]:hidden">
             <div className="h-full flex flex-col">
               <span className="font-bold p-2 border-b">{t('jobTranslate.rightPanelConcordanceSearch')}</span>
               <div className="p-2">
@@ -489,12 +546,51 @@ const JobTranslatePage = () => {
                   {...concordanceSearchForm.register('source')}
                 />
               </div>
-              {!concordanceSearchSuggestionsQuery.data ? (
+              {!concordanceSearchFormValues.source ? (
                 <div className="flex flex-1 items-center justify-center">
-                  <span>{t('jobTranslate.rightPanelEnterTermsToSearch')}</span>
+                  <span className="text-muted-foreground text-sm">{t('jobTranslate.rightPanelEnterTermsToSearch')}</span>
                 </div>
               ) : (
-                <SuggestionsList data={concordanceSearchSuggestionsQuery.data.data} query={concordanceSearchSuggestionsQuery.data.meta?.query} />
+                <SuggestionsList
+                  data={concordanceSearchSuggestionsQuery.data?.data || []}
+                  query={concordanceSearchSuggestionsQuery.data?.meta?.query}
+                  isLoading={concordanceSearchSuggestionsQuery.isLoading}
+                  emptyText={t('jobTranslate.rightPanelNoResults')}
+                />
+              )}
+            </div>
+          </TabsContent>
+          <TabsContent value="ekilex" forceMount className="data-[state=inactive]:hidden">
+            <div className="h-full flex flex-col">
+              <span className="font-bold p-2 border-b">{t('jobTranslate.rightPanelEkilexSearch')}</span>
+              <div className="p-2 flex flex-col gap-2">
+                <Input
+                  placeholder={t('jobTranslate.rightPanelEkilexTermPlaceholder')}
+                  {...ekilexSearchForm.register('term')}
+                />
+                <Select value={ekilexDataset} onValueChange={setEkilexDataset}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_EKILEX_DATASETS}>{t('jobTranslate.rightPanelEkilexAllDatasets')}</SelectItem>
+                    {ekilexDatasetsQuery.data?.data.map((dataset) => (
+                      <SelectItem key={dataset.id} value={dataset.id}>{dataset.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {!ekilexSearchFormValues.term ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <span className="text-muted-foreground text-sm">{t('jobTranslate.rightPanelEkilexEnterTerm')}</span>
+                </div>
+              ) : (
+                <SuggestionsList
+                  data={ekilexSuggestionsQuery.data?.data || []}
+                  query={ekilexSuggestionsQuery.data?.meta?.query}
+                  isLoading={ekilexSuggestionsQuery.isLoading}
+                  emptyText={t('jobTranslate.rightPanelEkilexNoResults')}
+                />
               )}
             </div>
           </TabsContent>
@@ -517,6 +613,13 @@ const JobTranslatePage = () => {
                 value="text_search"
               >
                 <TextSearch />
+              </TabsPrimitive.Trigger>
+              <TabsPrimitive.Trigger
+                data-slot="tabs-trigger"
+                className="data-[state=active]:bg-background dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 text-foreground dark:text-muted-foreground inline-flex size-16 items-center justify-center gap-1.5 border border-transparent text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+                value="ekilex"
+              >
+                <BookOpen />
               </TabsPrimitive.Trigger>
             </div>
           </TabsPrimitive.List>

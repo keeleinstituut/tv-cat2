@@ -6,9 +6,8 @@ use App\Http\Requests\JobIndexRequest;
 use App\Http\Requests\JobPretranslateRequest;
 use App\Http\Requests\JobStoreRequest;
 use App\Http\Resources\JobResource;
-use App\Jobs\XliffToSegmentsJob;
-use App\Jobs\OriginalToXliffJob;
 use App\Jobs\DetectRepetitionsJob;
+use App\Jobs\ExtractSegmentsJob;
 use App\Jobs\PretranslateJob;
 use App\Models\Analysis;
 use App\Models\Job;
@@ -44,8 +43,7 @@ class JobController extends Controller
         $data = $query
             ->with(
                 'project',
-                'sourceFileCollection',
-                'xliffFileCollection'
+                'sourceFileCollection'
             )
             ->paginate();
 
@@ -67,7 +65,7 @@ class JobController extends Controller
     {
         $params = collect($request->validated());
 
-        return DB::transaction(function () use ($params) {
+        $obj = DB::transaction(function () use ($params) {
             $obj = new Job();
             tap($params->only([
                 'project_id',
@@ -76,6 +74,7 @@ class JobController extends Controller
 
             $this->authorize('create', $obj);
 
+            $obj->status = Job::STATUS_PROCESSING;
             $obj->save();
 
             if ($params->has('source_file_url')) {
@@ -89,17 +88,19 @@ class JobController extends Controller
                     });
             }
 
-            Bus::chain([
-                new OriginalToXliffJob($obj->sourceFileCollection->first(), $obj->project->source_locale, $obj->target_locale),
-                new XliffToSegmentsJob($obj),
-                new DetectRepetitionsJob($obj),
-                // new PretranslateJob($obj),
-            ])->dispatch();
-
-            $obj->load('sourceFileCollection', 'xliffFileCollection');
-
-            return JobResource::make($obj);
+            return $obj;
         });
+
+        // Only after the commit, so a queue worker always finds the job and its file.
+        Bus::chain([
+            new ExtractSegmentsJob($obj),
+            new DetectRepetitionsJob($obj),
+            // new PretranslateJob($obj),
+        ])->dispatch();
+
+        $obj->load('sourceFileCollection');
+
+        return JobResource::make($obj);
     }
 
     /**
@@ -112,7 +113,7 @@ class JobController extends Controller
 
         $this->authorize('view', $obj);
 
-        $obj->load('project', 'xliffFileCollection');
+        $obj->load('project', 'sourceFileCollection');
 
         return JobResource::make($obj);
     }

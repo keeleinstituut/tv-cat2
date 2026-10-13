@@ -14,7 +14,7 @@ class JobDownloadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => 'required|in:source,source_xliff,target,target_xliff',
+            'type' => 'required|in:source,target,xliff',
             'job_ids' => 'required|array|min:1',
             'job_ids.*' => 'required|uuid|exists:jobs,id',
         ];

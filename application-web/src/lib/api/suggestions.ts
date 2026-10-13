@@ -17,6 +17,10 @@ export type Suggestion = {
     source_context_after?: string
     target_context_before?: string
     target_context_after?: string
+    definition?: string
+    note?: string
+    sentence?: string
+    dataset?: string
   }
 }
 

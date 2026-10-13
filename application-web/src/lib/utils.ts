@@ -7,10 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const flattenJsonForRequest = (json: any) => {
-  console.log(json)
   const inner = (result: any, value: any, prefix: any) => {
-    console.log("prefix: " + prefix)
-    console.log(value)
     if (isArrayLikeObject(value)) {
       each(value, element => {
         inner(result, element, `${prefix}[]`)

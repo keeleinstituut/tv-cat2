@@ -22,6 +22,7 @@ class SuggestionIndexJobRequest extends FormRequest
                 'providers'      => 'array',
                 'providers.*'    => 'string',
                 'limit'          => 'integer|min:1',
+                'dataset'        => 'nullable|string',
             ];
         }
 
@@ -32,6 +33,7 @@ class SuggestionIndexJobRequest extends FormRequest
             'providers'      => 'array',
             'providers.*'    => 'string',
             'limit'          => 'integer|min:1',
+            'dataset'        => 'nullable|string',
         ];
     }
 }

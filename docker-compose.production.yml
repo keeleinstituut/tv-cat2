@@ -3,11 +3,16 @@ version: "3.8"
 services:
   app:
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - 6001:80
     env_file: ./application/.env
+    environment:
+      # catto-filters runs inside this container; overrides the value in .env
+      - FILTERS_BASE_URL=http://127.0.0.1:8080
