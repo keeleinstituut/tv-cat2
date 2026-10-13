@@ -4,6 +4,8 @@ function getColor(providerType: string, score: number | null): string {
       return 'bg-slate-600'
     case 'MT':
       return 'bg-indigo-600'
+    case 'TB':
+      return 'bg-yellow-600'
     case 'TM':
       if (!score) return ''
       if (score === 101) return 'bg-sky-600'

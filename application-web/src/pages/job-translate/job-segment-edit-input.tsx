@@ -1,8 +1,10 @@
 import DOMPurify, { type Config as DOMPurifyConfig } from "dompurify"
 import { useCallback, useEffect, useRef } from "react"
+import { escapeText, normalizeSegmentText } from "@/lib/segment-text"
 
+// Segment text only has these tags (see lib/segment-text.ts); everything the editor emits is normalized to them
 const SANITIZE_CONFIG: DOMPurifyConfig = {
-  ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 's', 'del', 'ins', 'sup', 'sub', 'br', 'span'],
+  ALLOWED_TAGS: ['b', 'i', 'u', 's', 'sup', 'sub', 'br'],
   ALLOWED_ATTR: [],
 }
 
@@ -65,10 +67,21 @@ const SegmentEditInputEditable = (props: {
 
   const handleInput = useCallback(() => {
     if (!ref.current || locked) return
-    const html = sanitize(ref.current.innerHTML)
+    // The browser writes strong/em/span/div/&nbsp; here; what is stored is the normalized segment text
+    const html = normalizeSegmentText(ref.current.innerHTML)
     lastValueRef.current = html
     if (onChange) onChange(html)
   }, [onChange, locked])
+
+  // Pasted text keeps its simple formatting but not fonts, colours, spans or layout
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (locked) return
+    e.preventDefault()
+    const html = e.clipboardData.getData('text/html')
+    const text = e.clipboardData.getData('text/plain')
+    const normalized = html ? normalizeSegmentText(html) : normalizeSegmentText(escapeText(text).replace(/\r?\n/g, '<br>'))
+    document.execCommand('insertHTML', false, sanitize(normalized))
+  }, [locked])
 
   const handleClick = useCallback(() => {
     if (onClick) onClick()
@@ -110,6 +123,7 @@ const SegmentEditInputEditable = (props: {
       suppressContentEditableWarning
       className={editableClassName}
       onInput={handleInput}
+      onPaste={handlePaste}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
     />

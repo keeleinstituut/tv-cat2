@@ -34,9 +34,12 @@
     "confirmDelete": "Kustuta"
   },
   "jobTranslate": {
+    "jobProcessing": "Faili loetakse, segmendid ilmuvad varsti...",
+    "jobFailed": "Faili lugemine ebaõnnestus",
     "toolbarBold": "Rasvane",
     "toolbarItalic": "Kaldkiri",
     "toolbarUnderline": "Allajoonitud",
+    "toolbarStrikethrough": "Läbikriipsutatud",
     "toolbarSubscript": "Alaindeks",
     "toolbarSuperscript": "Ülaindeks",
     "toolbarDeleteTarget": "Kustuta sihttekst",
@@ -73,6 +76,11 @@
     "rightPanelConcordanceSearch": "Konkordantsiotsing",
     "rightPanelSearchPlaceholder": "Otsi...",
     "rightPanelEnterTermsToSearch": "Sisesta otsitavad terminid",
+    "rightPanelEkilexSearch": "Ekilexi terminiotsing",
+    "rightPanelEkilexTermPlaceholder": "Otsingu termin...",
+    "rightPanelEkilexAllDatasets": "Kõik sõnakogud",
+    "rightPanelEkilexEnterTerm": "Sisesta Ekilexis otsitav termin",
+    "rightPanelEkilexNoResults": "Termineid ei leitud",
     "rightPanelComments": "Kommentaarid",
 
     "filterNotAvailable": "Pole selles versioonis saadaval",
@@ -139,7 +147,11 @@
     "suggestionSourceContextAfterLabel": "Järgnev lähtekontekst",
     "suggestionCreatedLabel": "Loodud",
     "suggestionUpdatedLabel": "Uuendatud",
-    "suggestionDiffLabel": "Erinevus otsitud tekstist"
+    "suggestionDiffLabel": "Erinevus otsitud tekstist",
+    "suggestionDatasetLabel": "Sõnakogu",
+    "suggestionDefinitionLabel": "Definitsioon",
+    "suggestionNoteLabel": "Märkus",
+    "suggestionSentenceLabel": "Kasutusnäide"
   },
   "common": {
     "close": "Sulge",

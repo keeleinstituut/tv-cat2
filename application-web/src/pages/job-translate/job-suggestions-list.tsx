@@ -4,10 +4,12 @@ import { diffWords } from "diff"
 import { map } from "lodash"
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { plainText } from "@/lib/segment-text"
 import SegmentEditInput from "./job-segment-edit-input"
 import SuggestionBadge from "./suggestion-badge"
 
-const stripTags = (html: string) => html.replace(/<[^>]*>/g, '')
+// The text a person reads, so the diff does not show tags or entities
+const stripTags = (html: string) => plainText(html)
 
 const SuggestionsList = (props: { data: Suggestion[], query?: string, onSelect?: (data: Suggestion) => void }) => {
   const { t, i18n } = useTranslation()
@@ -59,6 +61,21 @@ const SuggestionsList = (props: { data: Suggestion[], query?: string, onSelect?:
               <TableCell>{t('jobTranslate.suggestionNameLabel')}: </TableCell>
               <TableCell className="whitespace-break-spaces">{selectedSuggestion?.provider.name}</TableCell>
             </TableRow>
+            {selectedSuggestion?.provider.type == 'TB' && (
+              <>
+                {([
+                  ['suggestionDatasetLabel', selectedSuggestion.meta?.dataset],
+                  ['suggestionDefinitionLabel', selectedSuggestion.meta?.definition],
+                  ['suggestionNoteLabel', selectedSuggestion.meta?.note],
+                  ['suggestionSentenceLabel', selectedSuggestion.meta?.sentence],
+                ] as const).map(([label, value]) => !!value && (
+                  <TableRow key={label}>
+                    <TableCell>{t(`jobTranslate.${label}`)}: </TableCell>
+                    <TableCell className="whitespace-break-spaces">{value}</TableCell>
+                  </TableRow>
+                ))}
+              </>
+            )}
             {selectedSuggestion?.provider.type == 'TM' && (
               <>
                 {!!sourceDiff && (
