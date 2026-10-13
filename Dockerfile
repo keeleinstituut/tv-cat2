@@ -22,6 +22,9 @@ RUN yarn build
 FROM composer:latest as composer
 FROM php:8.3.0-fpm-alpine3.19 as runtime
 
+# Set to false to skip LibreOffice (binary Office formats doc, xls, ppt, rtf are then unsupported)
+ARG WITH_LIBREOFFICE=true
+
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 ENV APP_ROOT /app
@@ -50,6 +53,17 @@ RUN composer install
 
 RUN apk add nginx \
                 supervisor
+
+# catto-filters service, runs next to the backend and listens on localhost only.
+# The jar is built in the catto-filters repository (./publish-to-catto.sh) and copied to docker/catto-filters.jar
+RUN apk add --no-cache openjdk17-jre-headless curl && \
+    if [ "${WITH_LIBREOFFICE}" = "true" ]; then \
+        apk add --no-cache libreoffice-writer libreoffice-calc libreoffice-impress font-dejavu; \
+    fi
+COPY ./docker/catto-filters.jar /opt/catto-filters/catto-filters.jar
+ENV FILTERS_PORT=8080 \
+    FILTERS_JAVA_OPTS=-Xmx1g \
+    FILTERS_BASE_URL=http://127.0.0.1:8080
 
 RUN sed -i 's/^\(\[supervisord\]\)$/\1\nnodaemon=true/' /etc/supervisord.conf && \
     sed -i 's/pm.max_children = 5/pm.max_children = 50/g' /usr/local/etc/php-fpm.d/www.conf && \
@@ -114,6 +128,19 @@ stderr_logfile_maxbytes=0
 [program:nginx]
 command=nginx -g 'daemon off;'
 process_name=%(program_name)s
+numprocs=1
+autostart=true
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes = 0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:catto-filters]
+process_name=%(program_name)s
+command=sh -c "exec java \$JAVA_OPTS -jar /opt/catto-filters/catto-filters.jar"
+user=www-data
+environment=PORT="%(ENV_FILTERS_PORT)s",JAVA_OPTS="%(ENV_FILTERS_JAVA_OPTS)s",HOME="/tmp"
 numprocs=1
 autostart=true
 autorestart=true

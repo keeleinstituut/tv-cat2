@@ -1,0 +1,19 @@
+FROM eclipse-temurin:17-jre
+
+# Set to false to skip LibreOffice (doc, xls, ppt, rtf are then unsupported)
+ARG WITH_LIBREOFFICE=true
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && if [ "$WITH_LIBREOFFICE" = "true" ]; then \
+         apt-get install -y --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress fonts-dejavu-core; \
+       fi \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd --system --create-home filters
+WORKDIR /app
+COPY catto-filters.jar ./catto-filters.jar
+USER filters
+
+ENV PORT=8080 JAVA_OPTS="-Xmx1g"
+EXPOSE 8080
+CMD ["sh", "-c", "exec java $JAVA_OPTS -jar catto-filters.jar"]

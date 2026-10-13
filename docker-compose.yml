@@ -5,8 +5,6 @@ services:
     depends_on:
       postgres:
         condition: service_started
-      catto-filters:
-        condition: service_healthy
 
   postgres:
     image: postgres:latest
@@ -20,27 +18,6 @@ services:
 
   redis:
     image: redis:latest
-
-  # Reads the translatable text out of files and writes translations back (Okapi, no XLIFF).
-  # The image with LibreOffice (default build target) also handles doc/xls/ppt/rtf; it needs about 2 GB.
-  catto-filters:
-    build:
-      context: ../catto-filters
-    ports:
-      - 8735:8080
-    environment:
-      - JAVA_OPTS=-Xmx1g
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-fs", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          memory: 2g
 
   # libretranslate:
   #   container_name: libretranslate
