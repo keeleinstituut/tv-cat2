@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Job;
 use App\Models\Segment;
 use App\Services\FiltersClient;
+use App\Support\SegmentText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -49,6 +50,8 @@ class ExtractSegmentsJob implements ShouldQueue
                     'id' => Str::uuid()->toString(),
                     'job_id' => $this->jobModel->id,
                     'source' => $segment['text'],
+                    'source_words' => SegmentText::wordCount($segment['text']),
+                    'source_chars' => SegmentText::charCount($segment['text']),
                     'position' => $position,
                     'filter_segment_id' => $segment['id'],
                     'created_at' => $now,

@@ -14,6 +14,8 @@ class Segment extends Model
     protected $fillable = [
         'job_id',
         'source',
+        'source_words',
+        'source_chars',
         'target',
         'confirmed',
         'locked',

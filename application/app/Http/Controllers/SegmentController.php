@@ -49,8 +49,12 @@ class SegmentController extends Controller
         return SegmentResource::collection($data)
             ->additional([
                 'meta' => [
-                    'count'            => $query->count(),
-                    'translated_count' => $query->whereNotNull('target')->count()
+                    'segment_count'           => $query->count(),
+                    'word_count'              => $query->sum('source_words'),
+                    'char_count'              => $query->sum('source_chars'),
+                    'confirmed_segment_count' => $query->where('confirmed', true)->count(),
+                    'confirmed_word_count'    => $query->where('confirmed', true)->sum('source_words'),
+                    'confirmed_char_count'    => $query->where('confirmed', true)->sum('source_chars'),
                 ],
             ]);
     }
@@ -65,6 +69,8 @@ class SegmentController extends Controller
             $obj = $query->findOrFail($id);
 
             $this->authorize('update', $obj);
+
+            $this->abortIfPretranslating($obj->job);
 
             // A locked segment only accepts changes to the lock itself
             if ($obj->locked && ($params->has('target') || $params->has('confirmed'))) {
@@ -99,7 +105,7 @@ class SegmentController extends Controller
             }
 
             // TM saving part
-            if ($params->get('confirmed')) {
+            if ($params->get('confirmed') && filled($obj->target)) {
                 $prevSegment = Segment::where('job_id', $obj->job_id)
                     ->where('position', '<', $obj->position)
                     ->orderBy('position', 'desc')
@@ -145,6 +151,7 @@ class SegmentController extends Controller
         // 'view' — bulk-editing/confirming segments is translating, part of view-level CAT access.
         $job = Job::findOrFail($params->get('job_id'));
         $this->authorize('view', $job);
+        $this->abortIfPretranslating($job);
 
         return DB::transaction(function () use ($params) {
             $query = $this->getBaseQuery()
@@ -209,6 +216,7 @@ class SegmentController extends Controller
 
         $job = Job::findOrFail($params->get('job_id'));
         $this->authorize('view', $job);
+        $this->abortIfPretranslating($job);
 
         $target = $params->get('target');
         $replaceTarget = $params->get('replace_target') ?? '';
@@ -294,6 +302,13 @@ class SegmentController extends Controller
         }
 
         return $query;
+    }
+
+    private function abortIfPretranslating(Job $job): void
+    {
+        if ($job->status === Job::STATUS_PRETRANSLATING) {
+            abort(423, 'Job is being pretranslated.');
+        }
     }
 
     private function getBaseQuery()

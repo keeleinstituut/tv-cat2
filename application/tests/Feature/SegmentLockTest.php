@@ -10,6 +10,7 @@ use App\Models\TranslationMemory;
 use App\Models\TranslationMemorySegment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -135,6 +136,74 @@ class SegmentLockTest extends TestCase
 
         $this->assertTrue($open->refresh()->confirmed);
         $this->assertFalse($locked->refresh()->confirmed);
+    }
+
+    // --------------------------------------------------- pretranslation lock
+
+    private function setJobStatus(string $status): void
+    {
+        Job::whereKey($this->job->id)->update(['status' => $status]);
+    }
+
+    public function test_segment_changes_are_rejected_while_job_is_pretranslating(): void
+    {
+        $segment = $this->makeSegment(1, 'Hello', ['target' => 'Tere']);
+        $this->setJobStatus(Job::STATUS_PRETRANSLATING);
+
+        $this->actingAsServiceAccount()
+            ->putJson("/api/segments/{$segment->id}", ['target' => 'Changed'])
+            ->assertStatus(423);
+
+        $this->actingAsServiceAccount()
+            ->putJson("/api/segments/{$segment->id}", ['locked' => true])
+            ->assertStatus(423);
+
+        $this->actingAsServiceAccount()
+            ->putJson('/api/segments/bulk', [
+                'job_id'      => $this->job->id,
+                'segment_ids' => [$segment->id],
+                'confirmed'   => true,
+            ])
+            ->assertStatus(423);
+
+        $this->actingAsServiceAccount()
+            ->putJson('/api/segments/replace', [
+                'job_id'         => $this->job->id,
+                'target'         => 'Tere',
+                'replace_target' => 'Changed',
+            ])
+            ->assertStatus(423);
+
+        $segment->refresh();
+        $this->assertSame('Tere', $segment->target);
+        $this->assertFalse($segment->confirmed);
+        $this->assertFalse($segment->locked);
+    }
+
+    public function test_segment_changes_are_allowed_again_when_pretranslation_is_done(): void
+    {
+        $segment = $this->makeSegment(1, 'Hello', ['target' => 'Tere']);
+        $this->setJobStatus(Job::STATUS_PRETRANSLATING);
+
+        (new PretranslateJob($this->job))->handle();
+
+        $this->assertSame(Job::STATUS_READY, $this->job->refresh()->status);
+        $this->actingAsServiceAccount()
+            ->putJson("/api/segments/{$segment->id}", ['target' => 'Changed'])
+            ->assertOk();
+    }
+
+    public function test_pretranslate_endpoint_marks_job_as_pretranslating(): void
+    {
+        Bus::fake();
+        $this->setJobStatus(Job::STATUS_READY);
+
+        $this->actingAsServiceAccount()
+            ->postJson('/api/jobs/pretranslate', ['job_ids' => [$this->job->id]])
+            ->assertNoContent();
+
+        $this->assertSame(Job::STATUS_PRETRANSLATING, $this->job->refresh()->status);
+        Bus::assertDispatched(PretranslateJob::class);
     }
 
     // --------------------------------------------------------------- filters

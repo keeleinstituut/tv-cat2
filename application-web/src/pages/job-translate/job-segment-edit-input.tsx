@@ -108,11 +108,11 @@ const SegmentEditInputEditable = (props: {
   }, [locked, isOverwriteMode, handleInput])
 
   const editableClassName = [
-    'p-2 outline-none min-h-8',
+    'p-2 outline-none min-h-8 select-text',
     className ?? '',
     showHiddenChars ? 'underline decoration-dotted decoration-muted-foreground/30 underline-offset-2' : '',
     isOverwriteMode ? 'caret-orange-500' : '',
-    locked ? 'cursor-not-allowed bg-muted/40 text-muted-foreground' : '',
+    locked ? 'cursor-text text-muted-foreground' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -135,7 +135,7 @@ const SegmentEditInput = (props: SegmentEditInputProps) => {
     const html = sanitize(props.value ?? '')
     return (
       <span
-        className={props.className}
+        className={`${props.className ?? ''} select-text cursor-text`}
         dangerouslySetInnerHTML={{ __html: props.showHiddenChars ? processHiddenChars(html) : html }}
       />
     )

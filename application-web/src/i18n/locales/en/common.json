@@ -38,6 +38,7 @@
     "noSegmentsMatchFilter": "No segments match your search",
     "noSegmentsFound": "This job has no segments",
     "jobFailed": "Reading the file failed",
+    "pretranslating": "Pretranslation in progress, editing is disabled until it finishes",
     "toolbarBold": "Bold",
     "toolbarItalic": "Italic",
     "toolbarUnderline": "Underline",

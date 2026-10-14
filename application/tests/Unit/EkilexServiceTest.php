@@ -68,7 +68,7 @@ class EkilexServiceTest extends TestCase
         $result = EkilexService::getSuggestions($this->makeOptions());
 
         $this->assertCount(1, $result);
-        $this->assertSame('TERM', $result[0]['provider']['type']);
+        $this->assertSame('TB', $result[0]['provider']['type']);
         $this->assertSame('Ekilex', $result[0]['provider']['name']);
         $this->assertSame('maja', $result[0]['source']);
         $this->assertSame('house', $result[0]['target']);

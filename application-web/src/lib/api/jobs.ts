@@ -5,7 +5,7 @@ export type Job = {
   id: string
   project_id: string
   target_locale: string
-  status: 'processing' | 'ready' | 'failed'
+  status: 'processing' | 'ready' | 'failed' | 'pretranslating'
   error: string | null
   confirmed: string
   created_at: string

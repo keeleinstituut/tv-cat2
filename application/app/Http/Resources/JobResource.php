@@ -28,7 +28,6 @@ class JobResource extends JsonResource
             // processing while the file is read, ready, or failed (with the reason in error)
             'status' => $this->status,
             'error' => $this->error,
-            'confirmed' => 6,
         ];
     }
 }
