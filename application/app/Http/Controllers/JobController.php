@@ -161,7 +161,13 @@ class JobController extends Controller
     {
         $jobs = $this->getBaseQuery()->whereIn('id', $request->validated()['job_ids'])->get();
         $jobs->each(fn($job) => $this->authorize('update', $job));
-        $jobs->each(fn($job) => PretranslateJob::dispatch($job));
+        $jobs->each(function ($job) {
+            // Lock editing until PretranslateJob finishes; jobs still extracting or failed are left as is
+            Job::whereKey($job->id)
+                ->where('status', Job::STATUS_READY)
+                ->update(['status' => Job::STATUS_PRETRANSLATING]);
+            PretranslateJob::dispatch($job);
+        });
         return response()->noContent();
     }
 

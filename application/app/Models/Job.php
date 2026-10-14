@@ -14,14 +14,14 @@ class Job extends Model implements HasMedia
     use HasUuids;
     use InteractsWithMedia;
 
-    public const SOURCE_FILE_COLLECTION = 'source';
 
     public const STATUS_PROCESSING = 'processing';
     public const STATUS_READY = 'ready';
     public const STATUS_FAILED = 'failed';
+    public const STATUS_PRETRANSLATING = 'pretranslating';
 
+    public const SOURCE_FILE_COLLECTION = 'source';
     public const TARGET_FILE_COLLECTION = 'target';
-    // bilingual XLIFF export, generated on download
     public const XLIFF_FILE_COLLECTION = 'xliff';
 
 

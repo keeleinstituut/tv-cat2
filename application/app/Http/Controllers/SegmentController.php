@@ -70,6 +70,8 @@ class SegmentController extends Controller
 
             $this->authorize('update', $obj);
 
+            $this->abortIfPretranslating($obj->job);
+
             // A locked segment only accepts changes to the lock itself
             if ($obj->locked && ($params->has('target') || $params->has('confirmed'))) {
                 abort(423, 'Segment is locked.');
@@ -149,6 +151,7 @@ class SegmentController extends Controller
         // 'view' — bulk-editing/confirming segments is translating, part of view-level CAT access.
         $job = Job::findOrFail($params->get('job_id'));
         $this->authorize('view', $job);
+        $this->abortIfPretranslating($job);
 
         return DB::transaction(function () use ($params) {
             $query = $this->getBaseQuery()
@@ -213,6 +216,7 @@ class SegmentController extends Controller
 
         $job = Job::findOrFail($params->get('job_id'));
         $this->authorize('view', $job);
+        $this->abortIfPretranslating($job);
 
         $target = $params->get('target');
         $replaceTarget = $params->get('replace_target') ?? '';
@@ -298,6 +302,13 @@ class SegmentController extends Controller
         }
 
         return $query;
+    }
+
+    private function abortIfPretranslating(Job $job): void
+    {
+        if ($job->status === Job::STATUS_PRETRANSLATING) {
+            abort(423, 'Job is being pretranslated.');
+        }
     }
 
     private function getBaseQuery()

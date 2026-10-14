@@ -43,6 +43,28 @@ class PretranslateJob implements ShouldQueue
      */
     public function handle(): void
     {
+        try {
+            $this->pretranslate();
+        } finally {
+            $this->releaseJob();
+        }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        $this->releaseJob();
+    }
+
+    /** Lift the editing lock set when pretranslation was requested. */
+    private function releaseJob(): void
+    {
+        Job::whereKey($this->jobModel->getKey())
+            ->where('status', Job::STATUS_PRETRANSLATING)
+            ->update(['status' => Job::STATUS_READY]);
+    }
+
+    private function pretranslate(): void
+    {
         $segments = $this->jobModel->segments()->orderBy('position')->get();
         // Locked segments are never overwritten, but stay in $segments as context for their neighbours
         $untranslated = $segments->filter(fn($s) => !$s->locked);
