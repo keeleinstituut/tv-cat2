@@ -55,12 +55,13 @@ type JobSegmentsListProps = {
   showHiddenChars: boolean
   isOverwriteMode: boolean
   isJobProcessing: boolean
+  isPretranslating: boolean
   hasActiveFilter: boolean
 }
 
 const JobSegmentsList = (props: JobSegmentsListProps) => {
   const { t } = useTranslation()
-  const { segmentsQuery, editedSegments, currentSegmentId, onSegmentClick, onSegmentChange, onToggleLock, showHiddenChars, isOverwriteMode, isJobProcessing, hasActiveFilter } = props
+  const { segmentsQuery, editedSegments, currentSegmentId, onSegmentClick, onSegmentChange, onToggleLock, showHiddenChars, isOverwriteMode, isJobProcessing, isPretranslating, hasActiveFilter } = props
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [anchorId, setAnchorId] = useState<string | null>(null)
@@ -101,6 +102,8 @@ const JobSegmentsList = (props: JobSegmentsListProps) => {
     const isShift = e.shiftKey
 
     if (!isCtrl && !isShift) {
+      // Don't activate the row (and re-render) when the user just drag-selected text to copy it
+      if (window.getSelection()?.toString()) return
       onSegmentClick(segment)
       setSelectedIds(new Set([segment.id]))
       setAnchorId(segment.id)
@@ -126,6 +129,8 @@ const JobSegmentsList = (props: JobSegmentsListProps) => {
     const segment = allRows[virtualRow.index]
     const isActive = !isLoaderRow && segment.id === currentSegmentId
     const isLocked = !isLoaderRow && (editedSegments[segment.id]?.locked ?? segment.locked)
+    // Locked segments show the lock icon; pretranslation only blocks editing
+    const isEditBlocked = isLocked || isPretranslating
     const isSelected = !isLoaderRow && (isVirtualAllSelected || selectedIds.has(segment.id))
 
     return (
@@ -163,14 +168,14 @@ const JobSegmentsList = (props: JobSegmentsListProps) => {
                   onChange={(value) => onSegmentChange(segment, { target: value })}
                   showHiddenChars={showHiddenChars}
                   isOverwriteMode={isOverwriteMode}
-                  locked={isLocked}
+                  locked={isEditBlocked}
                 />
                 <ButtonItem
-                  disabled={isLocked}
+                  disabled={isEditBlocked}
                   active={editedSegments[segment.id]?.confirmed ?? segment.confirmed}
                   inactiveIcon={<Circle size={16} />}
                   activeIcon={<CircleCheck size={16} className="text-emerald-400" />}
-                  onClick={() => !isLocked && onSegmentChange(segment, { confirmed: !(editedSegments[segment.id]?.confirmed ?? segment.confirmed)})}
+                  onClick={() => !isEditBlocked && onSegmentChange(segment, { confirmed: !(editedSegments[segment.id]?.confirmed ?? segment.confirmed)})}
                 />
                 <span className="flex self-stretch w-[40px] text-xs mx-1">
                   <SuggestionBadge providerType={segment.pretranslate_suggestion_provider_type} score={segment.pretranslate_suggestion_score} className="h-full" />
@@ -192,14 +197,15 @@ const JobSegmentsList = (props: JobSegmentsListProps) => {
                   title={isLocked ? t('jobTranslate.segmentLocked') : t('jobTranslate.segmentUnlocked')}
                   inactiveIcon={<LockOpen size={16} />}
                   activeIcon={<Lock size={16} className="text-orange-400" />}
-                  onClick={() => onToggleLock(segment)}
+                  disabled={isPretranslating}
+                  onClick={() => !isPretranslating && onToggleLock(segment)}
                 />
               </>
             )}
         </div>
       </div>
     )
-  }, [allRows, editedSegments, currentSegmentId, selectedIds, isVirtualAllSelected, handleRowClick, onSegmentChange, onToggleLock, showHiddenChars, isOverwriteMode, t])
+  }, [allRows, editedSegments, currentSegmentId, selectedIds, isVirtualAllSelected, handleRowClick, onSegmentChange, onToggleLock, showHiddenChars, isOverwriteMode, isPretranslating, t])
 
   const totalCount = segmentsQuery.data?.pages[0]?.meta.total
 

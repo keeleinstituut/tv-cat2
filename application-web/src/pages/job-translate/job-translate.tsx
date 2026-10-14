@@ -5,7 +5,7 @@ import { getJob } from "@/lib/api/jobs"
 import { escapeText, plainText } from "@/lib/segment-text"
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query"
 import { useParams } from "react-router"
-import { Bold, Italic, Underline, Strikethrough, Subscript, Superscript, Cat, TextSearch, SlidersHorizontal, Replace, ChevronLeft, ChevronRight, BookOpen } from "lucide-react"
+import { Bold, Italic, Underline, Strikethrough, Subscript, Superscript, Cat, TextSearch, BookOpen, SlidersHorizontal, Replace, ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
@@ -38,8 +38,8 @@ const ALL_EKILEX_DATASETS = '__all__'
 
 
 type Action = {
-  type: 'SET_CURRENT_SEGMENT' | 'EDIT_SEGMENT'
-  data: any
+  type: 'SET_CURRENT_SEGMENT' | 'EDIT_SEGMENT' | 'RESET_EDITED'
+  data?: any
 }
 
 type State = {
@@ -76,6 +76,10 @@ const reducer = (state: State, action: Action): State => {
           }
         }
       }
+
+    // Server values replaced local edits (e.g. after pretranslation)
+    case 'RESET_EDITED':
+      return { ...state, edited: {} }
 
     default:
       return state
@@ -183,10 +187,15 @@ const JobTranslatePage = () => {
   const jobQuery = useQuery({
     queryKey: ['job', job_id],
     queryFn: getJob,
-    // The file is read in the background after the job is created
-    refetchInterval: (query) => query.state.data?.data.status === 'processing' ? 3000 : false,
+    // The file is read in the background after the job is created, and pretranslation runs in the background
+    refetchInterval: (query) => {
+      const status = query.state.data?.data.status
+      return status === 'processing' || status === 'pretranslating' ? 3000 : false
+    },
   })
   const jobStatus = jobQuery.data?.data.status
+  // Pretranslation overwrites targets, so edits made meanwhile would be lost
+  const isPretranslating = jobStatus === 'pretranslating'
 
   const suggestionsQuery = useQuery({
     queryKey: ['job_suggestions', job_id, suggestionsQueryParam],
@@ -229,7 +238,16 @@ const JobTranslatePage = () => {
     }
   })
 
+  // Drop unsaved edits when pretranslation starts, they would be rejected or overwritten
+  useEffect(() => {
+    if (isPretranslating) {
+      debounceTimersRef.current.forEach(clearTimeout)
+      debounceTimersRef.current.clear()
+    }
+  }, [isPretranslating])
+
   const handleSegmentChange = useCallback((segment: Segment, data: Partial<Pick<Segment, "target" | "confirmed">>) => {
+    if (isPretranslating) return
     // Locked segments can't be edited or confirmed until they're unlocked
     if (state.edited[segment.id]?.locked ?? segment.locked) return
 
@@ -244,9 +262,10 @@ const JobTranslatePage = () => {
     }, 800)
 
     debounceTimersRef.current.set(segment.id, timer)
-  }, [updateSegmentMutation, state.edited])
+  }, [updateSegmentMutation, state.edited, isPretranslating])
 
   const handleToggleLock = useCallback(async (segment: Segment) => {
+    if (isPretranslating) return
     const isLocked = state.edited[segment.id]?.locked ?? segment.locked
 
     if (isLocked) {
@@ -261,7 +280,7 @@ const JobTranslatePage = () => {
 
     dispatch({ type: 'EDIT_SEGMENT', data: { id: segment.id, locked: !isLocked } })
     updateSegmentMutation.mutate({ id: segment.id, body: { locked: !isLocked } })
-  }, [updateSegmentMutation, state.edited, confirm, t])
+  }, [updateSegmentMutation, state.edited, confirm, t, isPretranslating])
 
   const segmentsQuery = useInfiniteQuery({
     queryKey: ['segments', segmentsQueryParam],
@@ -277,6 +296,19 @@ const JobTranslatePage = () => {
     initialPageParam: 1,
   })
 
+  const prevJobStatusRef = useRef(jobStatus)
+
+  // Segments appear when the file has been read, and change when pretranslation ends
+  useEffect(() => {
+    if (prevJobStatusRef.current === 'pretranslating') dispatch({ type: 'RESET_EDITED' })
+    prevJobStatusRef.current = jobStatus
+    if (jobStatus === 'ready') segmentsQuery.refetch()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobStatus])
+
+  // .at(-1), not .reverse(): reverse() mutates the cached pages array in place
+  const lastPage = (segmentsQuery.data?.pages || []).at(-1)
+
   const replaceMutation = useMutation({
     mutationFn: replaceSegments,
     onSuccess: () => {
@@ -285,6 +317,34 @@ const JobTranslatePage = () => {
   })
 
   const allRows = segmentsQuery.data?.pages.flatMap(p => p.data) ?? []
+
+  // Rebuilt only when server data changes, not on every edit
+  const segmentsById = useMemo(
+    () => new Map((segmentsQuery.data?.pages ?? []).flatMap(p => p.data).map(s => [s.id, s])),
+    [segmentsQuery.data]
+  )
+
+  const footerCounts = useMemo(() => {
+    const meta = lastPage?.meta as any
+    const counts = {
+      segments: meta?.segment_count,
+      words: meta?.word_count,
+      chars: meta?.char_count,
+      confirmed_segments: meta?.confirmed_segment_count ?? 0,
+      confirmed_words: meta?.confirmed_word_count ?? 0,
+      confirmed_chars: meta?.confirmed_char_count ?? 0,
+    }
+    for (const [id, edit] of Object.entries(state.edited)) {
+      const seg = segmentsById.get(id)
+      if (!seg || edit.confirmed === undefined || edit.confirmed === seg.confirmed) continue
+      const sign = edit.confirmed ? 1 : -1
+      counts.confirmed_segments += sign
+      counts.confirmed_words += sign * seg.source_words
+      counts.confirmed_chars += sign * seg.source_chars
+    }
+    return counts
+  }, [lastPage, segmentsById, state.edited])
+
   const currentMatchIndex = allRows.findIndex(s => s.id === state.currentSegment?.id)
 
   const handleNextMatch = useCallback(() => {
@@ -308,7 +368,7 @@ const JobTranslatePage = () => {
   }, [state.currentSegment, state.edited, filterFormValues.target, replaceWith, handleSegmentChange])
 
   const handleReplaceAll = useCallback(async () => {
-    if (!filterFormValues.target || !job_id) return
+    if (!filterFormValues.target || !job_id || isPretranslating) return
     const ok = await confirm({
       title: t('jobTranslate.replaceAllConfirmTitle'),
       description: t('jobTranslate.replaceAllConfirmDescription'),
@@ -324,7 +384,7 @@ const JobTranslatePage = () => {
       replace_target: replaceWith,
       ...filterParams,
     })
-  }, [filterFormValues.source, filterFormValues.target, job_id, replaceWith, advancedFilterParams, replaceMutation, confirm, t])
+  }, [filterFormValues.source, filterFormValues.target, job_id, replaceWith, advancedFilterParams, replaceMutation, confirm, t, isPretranslating])
 
   const selectedSegmentMeta = useMemo(() => {
     if (!state.currentSegment) {
@@ -365,6 +425,13 @@ const JobTranslatePage = () => {
       {jobStatus === 'failed' && (
         <div className="shrink-0 border-b bg-destructive/10 px-6 py-2 text-sm text-destructive">
           {t('jobTranslate.jobFailed')}{jobQuery.data?.data.error ? `: ${jobQuery.data.data.error}` : ''}
+        </div>
+      )}
+
+      {isPretranslating && (
+        <div className="shrink-0 flex items-center gap-2 border-b bg-blue-50 dark:bg-blue-950/40 px-6 py-2 text-sm text-blue-700 dark:text-blue-300">
+          <LoaderCircle size={16} className="animate-spin" />
+          {t('jobTranslate.pretranslating')}
         </div>
       )}
 
@@ -454,10 +521,10 @@ const JobTranslatePage = () => {
                     value={replaceWith}
                     onChange={(e) => setReplaceWith(e.target.value)}
                   />
-                  <Button variant="outline" size="sm" onClick={handleReplace} disabled={!filterFormValues.target || !state.currentSegment}>
+                  <Button variant="outline" size="sm" onClick={handleReplace} disabled={!filterFormValues.target || !state.currentSegment || isPretranslating}>
                     {t('jobTranslate.replace')}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleReplaceAll} disabled={!filterFormValues.target || replaceMutation.isPending}>
+                  <Button variant="outline" size="sm" onClick={handleReplaceAll} disabled={!filterFormValues.target || replaceMutation.isPending || isPretranslating}>
                     {t('jobTranslate.replaceAll')}
                   </Button>
                   <Button variant="ghost" size="icon" onClick={handlePrevMatch}><ChevronLeft /></Button>
@@ -495,11 +562,23 @@ const JobTranslatePage = () => {
             showHiddenChars={showHiddenChars}
             isOverwriteMode={isOverwriteMode}
             isJobProcessing={jobStatus === 'processing'}
+            isPretranslating={isPretranslating}
             hasActiveFilter={hasActiveFilter}
           />
 
           <div className="flex border-t">
             <div className="float-left flex px-2 py-4 text-sm gap-2 text-ellipsis whitespace-nowrap overflow-hidden w-fit">
+              <span className="text-green-400 font-medium">{t('jobTranslate.statusConfirmedLabel')}</span>
+              <span>{t('jobTranslate.statusSegmentsLabel')}</span>
+              <span>{footerCounts.confirmed_segments} / {footerCounts.segments}</span>
+              <span>·</span>
+              <span>{t('jobTranslate.statusWordsLabel')}</span>
+              <span>{footerCounts.confirmed_words} / {footerCounts.words}</span>
+              <span>·</span>
+              <span>{t('jobTranslate.statusCharsLabel')}</span>
+              <span>{footerCounts.confirmed_chars} / {footerCounts.chars}</span>
+              <span>|</span>
+
               <span className="text-blue-400 font-medium">{t('jobTranslate.statusActiveLabel')}</span>
               {!state.currentSegment ? (
                 <span>{t('jobTranslate.statusClickOnSegment')}</span>

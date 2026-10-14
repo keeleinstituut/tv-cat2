@@ -38,6 +38,7 @@
     "noSegmentsMatchFilter": "Otsingule vastavaid segmente ei leitud",
     "noSegmentsFound": "Selles töös pole segmente",
     "jobFailed": "Faili lugemine ebaõnnestus",
+    "pretranslating": "Eeltõlge on pooleli, muutmine on keelatud kuni selle lõpuni",
     "toolbarBold": "Rasvane",
     "toolbarItalic": "Kaldkiri",
     "toolbarUnderline": "Allajoonitud",

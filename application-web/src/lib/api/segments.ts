@@ -9,6 +9,8 @@ export type Segment = {
   target: string
   confirmed: boolean
   locked: boolean
+  source_words: number
+  source_chars: number
   position: number
   created_at: string
   updated_at: string
