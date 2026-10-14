@@ -104,12 +104,16 @@ class ReimportJobs extends Command
                     'position' => $position,
                     'filter_segment_id' => $new['id'],
                     'source' => $new['text'],
+                    'source_words' => SegmentText::wordCount($new['text']),
+                    'source_chars' => SegmentText::charCount($new['text']),
                     'target' => SegmentText::normalize($match->target),
                     'repetition_group' => null,
                 ])->save();
             } else {
                 $inserts[] = [
                     'id' => Str::uuid()->toString(), 'job_id' => $job->id, 'source' => $new['text'],
+                    'source_words' => SegmentText::wordCount($new['text']),
+                    'source_chars' => SegmentText::charCount($new['text']),
                     'position' => $position, 'filter_segment_id' => $new['id'],
                     'created_at' => $now, 'updated_at' => $now,
                 ];

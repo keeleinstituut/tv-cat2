@@ -49,8 +49,12 @@ class SegmentController extends Controller
         return SegmentResource::collection($data)
             ->additional([
                 'meta' => [
-                    'count'            => $query->count(),
-                    'translated_count' => $query->whereNotNull('target')->count()
+                    'segment_count'           => $query->count(),
+                    'word_count'              => $query->sum('source_words'),
+                    'char_count'              => $query->sum('source_chars'),
+                    'confirmed_segment_count' => $query->where('confirmed', true)->count(),
+                    'confirmed_word_count'    => $query->where('confirmed', true)->sum('source_words'),
+                    'confirmed_char_count'    => $query->where('confirmed', true)->sum('source_chars'),
                 ],
             ]);
     }
@@ -99,7 +103,7 @@ class SegmentController extends Controller
             }
 
             // TM saving part
-            if ($params->get('confirmed')) {
+            if ($params->get('confirmed') && filled($obj->target)) {
                 $prevSegment = Segment::where('job_id', $obj->job_id)
                     ->where('position', '<', $obj->position)
                     ->orderBy('position', 'desc')

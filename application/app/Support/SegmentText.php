@@ -116,6 +116,18 @@ final class SegmentText
         return html_entity_decode(strip_tags(str_ireplace(['<br>', '<br/>', '<br />'], ' ', $text)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
+    /** Number of words a person reads in the text (tags and entities do not count). */
+    public static function wordCount(?string $text): int
+    {
+        return (int) preg_match_all('/[\p{L}\p{N}]+(?:[\'’-][\p{L}\p{N}]+)*/u', self::plain($text));
+    }
+
+    /** Number of characters a person reads in the text (tags and entities do not count). */
+    public static function charCount(?string $text): int
+    {
+        return mb_strlen(self::plain($text));
+    }
+
     /** A "%text%" pattern for ilike that finds typed text in segment text (escaped, with LIKE wildcards neutralised). */
     public static function likePattern(string $text): string
     {

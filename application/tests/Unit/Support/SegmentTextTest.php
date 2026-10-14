@@ -50,6 +50,24 @@ class SegmentTextTest extends TestCase
         $this->assertSame('', SegmentText::plain(null));
     }
 
+    public function test_word_and_char_count_ignore_tags_and_entities(): void
+    {
+        $text = 'Tom &amp; Jerry &lt;3 x<sup>2</sup> line<br>two';
+
+        $this->assertSame(6, SegmentText::wordCount($text));
+        $this->assertSame(26, SegmentText::charCount($text));
+        $this->assertSame(2, SegmentText::wordCount('<b>Hello</b>   <i>world</i>'));
+        $this->assertSame(0, SegmentText::wordCount(null));
+        $this->assertSame(0, SegmentText::charCount(''));
+    }
+
+    public function test_word_count_keeps_multibyte_words_whole(): void
+    {
+        $this->assertSame(3, SegmentText::wordCount('Tüdruk õpib ülikoolis'));
+        $this->assertSame(21, SegmentText::charCount('Tüdruk õpib ülikoolis'));
+        $this->assertSame(2, SegmentText::wordCount("don't re-read"));
+    }
+
     public function test_escape_and_like_pattern_match_stored_text(): void
     {
         $this->assertSame('a &amp; b &lt;c&gt;', SegmentText::escape('a & b <c>'));

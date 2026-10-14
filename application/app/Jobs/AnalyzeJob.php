@@ -74,9 +74,8 @@ class AnalyzeJob implements ShouldQueue
         ];
 
         foreach ($segments as $i => $segment) {
-            $plain = SegmentText::plain($segment->source);
-            $words = str_word_count($plain);
-            $chars = mb_strlen($plain);
+            $words = SegmentText::wordCount($segment->source);
+            $chars = SegmentText::charCount($segment->source);
 
             $band = $this->classifySegment($segment, $tmResults[$i] ?? []);
 
