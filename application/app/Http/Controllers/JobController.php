@@ -13,7 +13,7 @@ use App\Models\Analysis;
 use App\Models\Job;
 use App\Models\JobAnalysis;
 use App\Models\Project;
-use Illuminate\Http\Request;
+use App\Models\Segment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Bus;
 
@@ -53,6 +53,17 @@ class JobController extends Controller
                     $acc[$v->id] = env('FRONTEND_URL') . '/jobs/' . $v->id . '/translate';
                     return $acc;
                 }, []),
+            'counts' => Segment::getModel()
+                ->whereIn('job_id', $data->pluck('id'))
+                ->groupBy('job_id')
+                ->select(
+                    'job_id',
+                    DB::raw('COUNT(*) AS segment_count'),
+                    DB::raw('COUNT(*) FILTER (WHERE confirmed) AS confirmed_segment_count')
+                )
+                ->get()
+                ->keyBy('job_id')
+                ->map(fn ($row) => $row->makeHidden('job_id')),
         ];
         return JobResource::collection($data)
             ->additional($additionalData);
